@@ -1,0 +1,24 @@
+@import '../src/index.css';
+@import '../src/components/FlagGame.css';
+
+body {
+  min-height: 100vh;
+}
+
+.page-shell {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #312e81 100%);
+  color: #f8fafc;
+}
+
+.app {
+  background: transparent;
+}
+
+.menu {
+  color: #0f172a;
+}
+
+.menu h1 {
+  color: #0f172a;
+}

@@ -1,0 +1,44 @@
+{
+  "name": "leyla-game",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "type-check": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:next": "cross-env E2E_TARGET=next PORT=4310 playwright test",
+    "dev:next": "next dev --port 4310",
+    "build:next": "next build",
+    "start:next": "next start --port 4310"
+  },
+  "dependencies": {
+    "@sentry/react": "^8.32.0",
+    "@supabase/supabase-js": "^2.32.0",
+    "next": "^14.2.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.28.0",
+    "zustand": "^4.4.0"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^14.2.5",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^20.14.2",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "typescript": "^5.2.0",
+    "vite": "^7.2.4"
+  }
+}

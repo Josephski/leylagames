@@ -1,0 +1,50 @@
+.app {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.menu {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.97);
+  padding: 3rem 2rem;
+  border-radius: 20px;
+  max-width: 600px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.menu h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+.menu p {
+  font-size: 1.1rem;
+  color: #334155;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.menu button {
+  padding: 0.9rem 2.6rem;
+  font-size: 1.1rem;
+  background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.28);
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+.menu button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+}

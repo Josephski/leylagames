@@ -1,0 +1,15 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop stop-color="#667eea" offset="0%"/>
+      <stop stop-color="#764ba2" offset="100%"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <text x="80" y="180" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="64" font-weight="600">Leyla Game</text>
+  <text x="80" y="250" fill="#e5e7eb" font-family="Segoe UI, sans-serif" font-size="36">Flaggquiz med timer, streaks och topplista</text>
+  <rect x="80" y="310" width="1040" height="240" rx="24" fill="rgba(255,255,255,0.12)" stroke="#ffffff" stroke-width="2"/>
+  <text x="120" y="380" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="30">💰 Poäng: bas + tidsbonus + streakmultiplikator</text>
+  <text x="120" y="430" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="30">⏳ Svårighet: Lätt / Mellan / Svår</text>
+  <text x="120" y="480" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="30">🌍 Flaggor offline + Supabase leaderboard</text>
+</svg>
