@@ -18,35 +18,24 @@ const IconSound = () => (
 const IconEye = () => (
   <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
     <path
-      d="M12 5c-5 0-9.27 3.11-11 7 1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7Zm0 11.25A4.25 4.25 0 1 1 12 8a4.25 4.25 0 0 1 0 8.5Zm0-2a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z"
+      d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Zm9 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
       fill="currentColor"
     />
+    <circle cx="12" cy="12" r="1.3" fill="#0f172a" />
   </svg>
 )
 
 const IconEyeOff = () => (
   <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
     <path
-      d="m4.5 4.5 15 15m-4.47-4.47A4.25 4.25 0 0 1 9.97 9.97m5.25-3.12A9.75 9.75 0 0 0 12 5C7 5 2.73 8.11 1 12c.67 1.5 1.78 2.86 3.12 4m4.1 2.15A9.76 9.76 0 0 0 12 19c5 0 9.27-3.11 11-7a10.68 10.68 0 0 0-2.29-3.27M9.97 9.97 12 12m2.53 2.53L12 12"
+      d="m4 4 16 16M6 6.5C3.9 8.5 3 12 3 12s3.5 6 9 6c1.15 0 2.22-.2 3.2-.55M11 5.06c.32-.04.65-.06 1-.06 5.5 0 9 6 9 6s-.48.83-1.38 1.81"
       stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       fill="none"
     />
-  </svg>
-)
-
-const IconShuffle = () => (
-  <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M4 7h3.8c1 0 1.96.47 2.56 1.27L12 10.5l1.64-2.23A3.2 3.2 0 0 1 16.2 7H20m-16 10h3.8c1 0 1.96-.47 2.56-1.27L12 13.5l1.64 2.23A3.2 3.2 0 0 0 16.2 17H20M20 7l-2-2m2 2-2 2m2 8-2-2m2 2-2 2M4 7v2m0 6v2"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
+    <circle cx="12" cy="12" r="2" fill="currentColor" />
   </svg>
 )
 
@@ -66,8 +55,12 @@ const IconSkip = () => (
 const IconNext = () => (
   <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
     <path
-      d="m7 5 8 7-8 7V5Z"
-      fill="currentColor"
+      d="M6 12h12m0 0-4-4m4 4-4 4"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
     />
   </svg>
 )
@@ -740,23 +733,19 @@ export default function FlagGame() {
                   </button>
                 ) : (
                   <>
-                    <button
-                      className="btn btn-hint icon-only"
-                      onClick={toggleShowAnswer}
-                      aria-label="Visa svar"
-                    >
-                      {showAnswer ? <IconEyeOff /> : <IconEye />}
-                      <span className="sr-only">{showAnswer ? 'Dölj svar' : 'Visa svar'}</span>
-                    </button>
-                    <button className="btn btn-ghost icon-only" onClick={shuffleCurrentLetters} aria-label="Blanda bokstäver">
-                      <IconShuffle />
-                      <span className="sr-only">Blanda</span>
-                    </button>
-                    {devMode && (
-                      <button
-                        className="btn btn-ghost"
-                        onClick={() => {
-                          if (!country) return
+                <button
+                  className="btn btn-hint icon-only"
+                  onClick={toggleShowAnswer}
+                  aria-label="Visa svar"
+                >
+                  {showAnswer ? <IconEyeOff /> : <IconEye />}
+                  <span className="sr-only">{showAnswer ? 'Dölj svar' : 'Visa svar'}</span>
+                </button>
+                {devMode && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      if (!country) return
                           const target = country.name.toUpperCase().split('')
                           setSelected(target)
                           handleCheckAnswer(target)
@@ -785,14 +774,6 @@ export default function FlagGame() {
 
             {completed && (
               <div className="button-group completed-group">
-                <button className="btn icon-only" onClick={submitScore} aria-label="Spara poäng">
-                  <IconSave />
-                  <span className="sr-only">Spara poäng</span>
-                </button>
-                <button className="btn btn-ghost icon-only" onClick={loadNewCountry} aria-label="Spela igen">
-                  <IconReplay />
-                  <span className="sr-only">Spela igen</span>
-                </button>
                 <button className="btn btn-next icon-only" onClick={loadNewCountry} aria-label="Nästa runda">
                   <IconNext />
                   <span className="sr-only">Nästa</span>
