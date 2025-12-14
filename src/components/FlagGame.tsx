@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  DragDropContext,
-  Draggable,
-  Droppable,
-  DropResult,
-} from '@hello-pangea/dnd'
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { getRandomCountry, shuffleLetters, type Country, getCountryByCode } from '../data/countries'
 import Leaderboard from './Leaderboard'
 import { useCurrentGame } from '../platform/GameContext'
@@ -196,7 +191,6 @@ export default function FlagGame() {
     setMessage('')
     setMessageType('info')
     setShowAnswer(false)
-    setDraggedIndex(null)
     setTimeLeft(customTime)
     setFlagError(false)
     setShowRoundSummary(false)
@@ -281,20 +275,6 @@ export default function FlagGame() {
     if (!country || !audioHelp) return
     playCountryName()
   }, [audioHelp, country, playCountryName])
-
-  const handleMouseDown = (index: number) => {
-    if (completed) return
-  }
-
-  const handleMouseUp = () => {
-  }
-
-  const handleTouchStart = (index: number) => {
-    if (completed) return
-  }
-
-  const handleTouchEnd = () => {
-  }
 
   const handleCheckAnswer = (override?: string[]) => {
     if (!country) return
@@ -393,19 +373,17 @@ export default function FlagGame() {
     ? Math.max(0, Math.min(100, (timeLeft / customTime) * 100))
     : 100
 
-  const reorder = (list: string[], startIndex: number, endIndex: number) => {
-    const result = Array.from(list)
-    const [removed] = result.splice(startIndex, 1)
-    result.splice(endIndex, 0, removed)
-    return result
-  }
-
   const onDragEnd = (result: DropResult) => {
     if (!result.destination || completed) return
     const from = result.source.index
     const to = result.destination.index
     if (from === to) return
-    setSelected((prev) => reorder(prev, from, to))
+    setSelected((prev) => {
+      const copy = [...prev]
+      const [removed] = copy.splice(from, 1)
+      copy.splice(to, 0, removed)
+      return copy
+    })
   }
 
   return (
@@ -546,12 +524,7 @@ export default function FlagGame() {
 
             <div className="game-board">
             <DragDropContext onDragEnd={onDragEnd}>
-              <div
-                className="answer-card"
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onTouchEnd={handleTouchEnd}
-              >
+              <div className="answer-card">
                 <div className="card-label">Arrangera bokstäverna:</div>
                 <Droppable droppableId="letters" direction="horizontal">
                   {(provided) => (
@@ -561,19 +534,13 @@ export default function FlagGame() {
                       {...provided.droppableProps}
                     >
                       {selected.map((letter, index) => (
-                        <Draggable
-                          key={`${letter}-${index}`}
-                          draggableId={`${letter}-${index}`}
-                          index={index}
-                        >
+                        <Draggable key={`${letter}-${index}`} draggableId={`${letter}-${index}`} index={index}>
                           {(dragProvided, snapshot) => (
                             <div
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
                               {...dragProvided.dragHandleProps}
                               className={`letter-box ${snapshot.isDragging ? 'dragging' : ''}`}
-                              onMouseDown={() => handleMouseDown(index)}
-                              onTouchStart={() => handleTouchStart(index)}
                               tabIndex={0}
                               role="button"
                               aria-label={`Bokstav ${letter}, position ${index + 1}`}
