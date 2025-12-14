@@ -65,28 +65,6 @@ const IconNext = () => (
   </svg>
 )
 
-const IconSave = () => (
-  <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M6 4h9.17L20 8.83V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm0 0h9v5H6V4Zm0 7h12v9H6v-9Zm2 2v5h8v-5H8Z"
-      fill="currentColor"
-    />
-  </svg>
-)
-
-const IconReplay = () => (
-  <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M12 5a7 7 0 1 1-6.18 3.7M5 9V4m0 0h5"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  </svg>
-)
-
 const BASE_POINTS = 10
 const STREAK_BONUS = 2
 
@@ -113,7 +91,6 @@ export default function FlagGame() {
   const [showSettings, setShowSettings] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
-  const [tutorialStep, setTutorialStep] = useState(0)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(() => {
@@ -274,21 +251,6 @@ export default function FlagGame() {
     window.localStorage.setItem('leyla-time-seconds', String(customTime))
   }, [customTime])
 
-  const tutorialSlides = [
-    {
-      title: 'Välkommen!',
-      body: 'Dra bokstäver eller använd piltangenterna för att flytta dem. Enter/Space kontrollerar svaret.',
-    },
-    {
-      title: 'Poäng',
-      body: 'Baspoäng + tidsbonus + streakbonus. Svårighet multiplicerar poängen (Lätt/Mellan/Svår).',
-    },
-    {
-      title: 'Hjälp och ljud',
-      body: 'Lyssna-knappen läser upp landets namn. Hjälp-knappen visar tips. Supabase krävs för topplista.',
-    },
-  ]
-
   const playCountryName = useCallback(() => {
     if (!country || !audioHelp) return
     try {
@@ -448,12 +410,6 @@ export default function FlagGame() {
     setShowAnswer(!showAnswer)
   }
 
-  const shuffleCurrentLetters = () => {
-    if (!country) return
-    setSelected(shuffleLetters(country.name))
-    setChecklistHints((hints) => hints.map(h => h.id === 'drag' ? { ...h, done: true } : h))
-  }
-
   const handleLetterKeyDown = (index: number, e: React.KeyboardEvent<HTMLDivElement>) => {
     if (completed) return
     if (e.key === 'ArrowRight') {
@@ -499,27 +455,6 @@ export default function FlagGame() {
     setMessage('Röster uppdaterade')
     setMessageType('info')
     setTimeout(() => setMessage(''), 1500)
-  }
-
-  const submitScore = async () => {
-    if (!completed) {
-      setMessage('Du måste klara banan först för att spara poäng.')
-      setMessageType('info')
-      setTimeout(() => setMessage(''), 2000)
-      return
-    }
-    const name = window.prompt('Ange ditt namn för topplistan (max 20 tecken):', 'Spelare') || ''
-    const trimmed = name.substring(0, 20) || 'Spelare'
-    try {
-      await saveScore(game.id, trimmed, score)
-      setMessage('Poäng sparade!')
-      setMessageType('success')
-    } catch (err: any) {
-      console.error(err)
-      setMessage('Kunde inte spara poäng (konfigurera Supabase).')
-      setMessageType('error')
-    }
-    setTimeout(() => setMessage(''), 2000)
   }
 
   if (!country) {
