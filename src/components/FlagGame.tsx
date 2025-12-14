@@ -104,11 +104,7 @@ export default function FlagGame() {
   const [roundScore, setRoundScore] = useState(0)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [showRoundSummary, setShowRoundSummary] = useState(false)
-  const [checklistHints] = useState([
-    { id: 'drag', text: 'Flytta bokstäver (dra eller piltangenter)', done: false },
-    { id: 'sound', text: 'Lyssna på landets namn', done: false },
-    { id: 'difficulty', text: 'Testa att byta svårighet', done: false },
-  ])
+  // Checklistan används inte längre (tutorial avstängd)
   const [audioHelp, setAudioHelp] = useState(() => {
     if (typeof window === 'undefined') return true
     const saved = window.localStorage.getItem('leyla-audio-help')
@@ -264,7 +260,6 @@ export default function FlagGame() {
       utterance.volume = 1.0
       speechSynthesis.cancel()
       speechSynthesis.speak(utterance)
-      setChecklistHints((hints) => hints.map(h => h.id === 'sound' ? { ...h, done: true } : h))
     } catch (err) {
       console.error(err)
     }
@@ -766,19 +761,11 @@ export default function FlagGame() {
               >
                 Hjälp
               </button>
-              <button
-                className="settings-btn"
-                onClick={() => setShowTutorial(true)}
-                aria-label="Guide"
-                title="Guide"
-              >
-                Guide
-              </button>
-              <button
-                className="settings-btn"
-                onClick={() => setShowLeaderboard((v) => !v)}
-                aria-label="Topplista"
-                title="Topplista"
+            <button
+              className="settings-btn"
+              onClick={() => setShowLeaderboard((v) => !v)}
+              aria-label="Topplista"
+              title="Topplista"
               >
                 {showLeaderboard ? 'Stäng topplista' : 'Topplista'}
               </button>
