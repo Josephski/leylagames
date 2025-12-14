@@ -191,7 +191,7 @@ export default function FlagGame() {
     setStreak(0)
     setRoundsPlayed((r) => r + 1)
     clearTimer()
-  }, [clearTimer, completed, country])
+  }, [clearTimer, completed, country, timeLimitEnabled])
 
   const startTimer = useCallback(() => {
     if (!timeLimitEnabled) {
