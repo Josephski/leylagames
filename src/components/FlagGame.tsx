@@ -537,10 +537,7 @@ export default function FlagGame() {
               onTouchEnd={handleTouchEnd}
             >
                 <div className="card-label">Arrangera bokstäverna:</div>
-                <div
-                  className="letters-container"
-                  ref={containerRef}
-                >
+                <div className="letters-container">
                   {selected.map((letter, index) => (
                     <div
                   key={`${letter}-${index}`}
