@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided, type DraggableStateSnapshot, type DroppableProvided } from '@hello-pangea/dnd'
 import { getRandomCountry, shuffleLetters, type Country, getCountryByCode } from '../data/countries'
 import Leaderboard from './Leaderboard'
 import { useCurrentGame } from '../platform/GameContext'
@@ -99,6 +98,7 @@ export default function FlagGame() {
   })
   const [roundsPlayed, setRoundsPlayed] = useState(0)
   const [correctRounds, setCorrectRounds] = useState(0)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [flagError, setFlagError] = useState(false)
   const [flagSrc, setFlagSrc] = useState<string | null>(null)
   const [roundScore, setRoundScore] = useState(0)
@@ -337,6 +337,7 @@ export default function FlagGame() {
     const newSelected = [...selected]
     ;[newSelected[from], newSelected[to]] = [newSelected[to], newSelected[from]]
     setSelected(newSelected)
+    setDragIndex(to)
   }
 
   useEffect(() => {
@@ -373,17 +374,19 @@ export default function FlagGame() {
     ? Math.max(0, Math.min(100, (timeLeft / customTime) * 100))
     : 100
 
-  const onDragEnd = (result: DropResult) => {
-    if (!result.destination || completed) return
-    const from = result.source.index
-    const to = result.destination.index
-    if (from === to) return
-    setSelected((prev) => {
-      const copy = [...prev]
-      const [removed] = copy.splice(from, 1)
-      copy.splice(to, 0, removed)
-      return copy
-    })
+  const handlePointerDown = (index: number) => {
+    if (completed) return
+    setDragIndex(index)
+  }
+
+  const handlePointerEnter = (index: number) => {
+    if (completed) return
+    if (dragIndex === null || dragIndex === index) return
+    moveLetter(dragIndex, index)
+  }
+
+  const handlePointerUp = () => {
+    setDragIndex(null)
   }
 
   return (
@@ -523,40 +526,26 @@ export default function FlagGame() {
             )}
 
             <div className="game-board">
-            <DragDropContext onDragEnd={onDragEnd}>
-              <div className="answer-card">
-                <div className="card-label">Arrangera bokstäverna:</div>
-                <Droppable droppableId="letters" direction="horizontal">
-                  {(provided: DroppableProvided) => (
-                    <div
-                      className="letters-container"
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                    >
-                      {selected.map((letter, index) => (
-                        <Draggable key={`${letter}-${index}`} draggableId={`${letter}-${index}`} index={index}>
-                          {(dragProvided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              {...dragProvided.dragHandleProps}
-                              className={`letter-box ${snapshot.isDragging ? 'dragging' : ''}`}
-                              tabIndex={0}
-                              role="button"
-                              aria-label={`Bokstav ${letter}, position ${index + 1}`}
-                              onKeyDown={(e) => handleLetterKeyDown(index, e)}
-                            >
-                              {letter}
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+            <div className="answer-card">
+              <div className="card-label">Arrangera bokstäverna:</div>
+              <div className="letters-container">
+                {selected.map((letter, index) => (
+                  <div
+                    key={`${letter}-${index}`}
+                    className={`letter-box ${dragIndex === index ? 'dragging' : ''}`}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Bokstav ${letter}, position ${index + 1}`}
+                    onKeyDown={(e) => handleLetterKeyDown(index, e)}
+                    onPointerDown={() => handlePointerDown(index)}
+                    onPointerEnter={() => handlePointerEnter(index)}
+                    onPointerUp={handlePointerUp}
+                  >
+                    {letter}
+                  </div>
+                ))}
               </div>
-            </DragDropContext>
+            </div>
 
               {message && (
                 <div className={`message ${messageType}`} aria-live="polite">
