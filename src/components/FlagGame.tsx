@@ -1,5 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { getRandomCountry, shuffleLetters, type Country, getCountryByCode } from '../data/countries'
 import Leaderboard from './Leaderboard'
 import { useCurrentGame } from '../platform/GameContext'
@@ -134,11 +150,11 @@ export default function FlagGame() {
   })
   const [timeLeft, setTimeLeft] = useState<number>(customTime)
 
-  const containerRef = useRef<HTMLDivElement>(null)
-  const isDragging = useRef(false)
-  const dragStartX = useRef(0)
-  const totalDragDistance = useRef(0)
   const timerRef = useRef<number | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -285,80 +301,26 @@ export default function FlagGame() {
     if (completed) return
     e.preventDefault()
     setDraggedIndex(index)
-    dragStartX.current = e.clientX
-    isDragging.current = true
-    totalDragDistance.current = 0
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || draggedIndex === null) return
-
-    const currentDistance = e.clientX - dragStartX.current
-    totalDragDistance.current += currentDistance
-    dragStartX.current = e.clientX
-
-    if (Math.abs(totalDragDistance.current) > 40) {
-      if (totalDragDistance.current > 0) {
-        if (draggedIndex < selected.length - 1) {
-          const newSelected = [...selected]
-          ;[newSelected[draggedIndex], newSelected[draggedIndex + 1]] = [newSelected[draggedIndex + 1], newSelected[draggedIndex]]
-          setSelected(newSelected)
-          setDraggedIndex(draggedIndex + 1)
-          totalDragDistance.current = 0
-        }
-      } else {
-        if (draggedIndex > 0) {
-          const newSelected = [...selected]
-          ;[newSelected[draggedIndex], newSelected[draggedIndex - 1]] = [newSelected[draggedIndex - 1], newSelected[draggedIndex]]
-          setSelected(newSelected)
-          setDraggedIndex(draggedIndex - 1)
-          totalDragDistance.current = 0
-        }
-      }
-    }
+    if (completed) return
   }
 
   const handleMouseUp = () => {
-    isDragging.current = false
     setDraggedIndex(null)
   }
 
   const handleTouchStart = (index: number, e: React.TouchEvent) => {
     if (completed) return
     setDraggedIndex(index)
-    dragStartX.current = e.touches[0].clientX
-    isDragging.current = true
-    totalDragDistance.current = 0
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging.current || draggedIndex === null) return
-    const clientX = e.touches[0].clientX
-    const currentDistance = clientX - dragStartX.current
-    totalDragDistance.current += currentDistance
-    dragStartX.current = clientX
-
-    if (Math.abs(totalDragDistance.current) > 40) {
-      if (totalDragDistance.current > 0) {
-        if (draggedIndex < selected.length - 1) {
-          const newSelected = [...selected]
-          ;[newSelected[draggedIndex], newSelected[draggedIndex + 1]] = [newSelected[draggedIndex + 1], newSelected[draggedIndex]]
-          setSelected(newSelected)
-          setDraggedIndex(draggedIndex + 1)
-          totalDragDistance.current = 0
-        }
-      } else if (draggedIndex > 0) {
-        const newSelected = [...selected]
-        ;[newSelected[draggedIndex], newSelected[draggedIndex - 1]] = [newSelected[draggedIndex - 1], newSelected[draggedIndex]]
-        setSelected(newSelected)
-        setDraggedIndex(draggedIndex - 1)
-        totalDragDistance.current = 0
-      }
-    }
+    if (completed) return
   }
 
   const handleTouchEnd = () => {
-    isDragging.current = false
     setDraggedIndex(null)
   }
 
@@ -661,35 +623,35 @@ export default function FlagGame() {
                   </button>
                 ) : (
                   <>
-                <button
-                  className="btn btn-hint icon-only"
-                  onClick={toggleShowAnswer}
-                  aria-label="Visa svar"
-                >
-                  {showAnswer ? <IconEyeOff /> : <IconEye />}
-                  <span className="sr-only">{showAnswer ? 'Dölj svar' : 'Visa svar'}</span>
-                </button>
-                {devMode && (
                   <button
-                    className="btn btn-ghost"
-                    onClick={() => {
-                      if (!country) return
-                          const target = country.name.toUpperCase().split('')
-                          setSelected(target)
-                          handleCheckAnswer(target)
-                        }}
-                      >
-                        Autofyll svar (dev)
-                      </button>
-                    )}
+                    className="btn btn-hint icon-only"
+                    onClick={toggleShowAnswer}
+                    aria-label="Visa svar"
+                  >
+                    {showAnswer ? <IconEyeOff /> : <IconEye />}
+                    <span className="sr-only">{showAnswer ? 'Dölj svar' : 'Visa svar'}</span>
+                  </button>
+                  {devMode && (
                     <button
-                      className="btn btn-skip icon-only"
-                      onClick={handleSkip}
-                      aria-label="Hoppa över"
+                      className="btn btn-ghost"
+                      onClick={() => {
+                        if (!country) return
+                        const target = country.name.toUpperCase().split('')
+                        setSelected(target)
+                        handleCheckAnswer(target)
+                      }}
                     >
-                      <IconSkip />
-                      <span className="sr-only">Hoppa över</span>
+                      Autofyll svar (dev)
                     </button>
+                  )}
+                  <button
+                    className="btn btn-skip icon-only"
+                    onClick={handleSkip}
+                    aria-label="Hoppa över"
+                  >
+                    <IconSkip />
+                    <span className="sr-only">Hoppa över</span>
+                  </button>
                 </>
               )}
             </div>
@@ -700,14 +662,7 @@ export default function FlagGame() {
               </div>
             )}
 
-            {completed && (
-              <div className="button-group completed-group">
-                <button className="btn btn-next icon-only" onClick={loadNewCountry} aria-label="Nästa runda">
-                  <IconNext />
-                  <span className="sr-only">Nästa</span>
-                </button>
-              </div>
-            )}
+            {/* no extra buttons after completion; only the inline Next remains */}
 
               {showRoundSummary && completed && (
                 <div className="hint" style={{ marginTop: '0.5rem' }}>
