@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getRandomCountry, shuffleLetters, type Country, getCountryByCode } from '../data/countries'
 import Leaderboard from './Leaderboard'
-import { saveScore } from '../lib/supabase'
 import { useCurrentGame } from '../platform/GameContext'
 import './FlagGame.css'
 
@@ -90,7 +89,7 @@ export default function FlagGame() {
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [showTutorial, setShowTutorial] = useState(false)
+  const [showTutorial] = useState(false)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(() => {
@@ -105,7 +104,7 @@ export default function FlagGame() {
   const [roundScore, setRoundScore] = useState(0)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [showRoundSummary, setShowRoundSummary] = useState(false)
-  const [checklistHints, setChecklistHints] = useState([
+  const [checklistHints] = useState([
     { id: 'drag', text: 'Flytta bokstäver (dra eller piltangenter)', done: false },
     { id: 'sound', text: 'Lyssna på landets namn', done: false },
     { id: 'difficulty', text: 'Testa att byta svårighet', done: false },
