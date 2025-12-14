@@ -75,6 +75,7 @@ const difficultySettings: Record<Difficulty, { time: number; multiplier: number;
 }
 
 export default function FlagGame() {
+  // Context is provided via GameProvider; we don't consume game data here.
   useCurrentGame()
   const navigate = useNavigate()
   const [country, setCountry] = useState<Country | null>(null)
