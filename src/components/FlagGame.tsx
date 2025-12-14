@@ -250,13 +250,7 @@ export default function FlagGame() {
     window.localStorage.setItem('leyla-best-streak', String(bestStreak))
   }, [bestStreak])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const savedTutorial = window.localStorage.getItem('leyla-seen-tutorial')
-    if (!savedTutorial) {
-      setShowTutorial(true)
-    }
-  }, [])
+  // Tutorial disabled on start; can be opened manually via Guide button if needed.
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -676,54 +670,6 @@ export default function FlagGame() {
                   </ul>
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
                     <button className="btn" onClick={() => setShowHelp(false)}>Stäng</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {showTutorial && (
-              <div className="settings-overlay" onClick={() => setShowTutorial(false)}>
-                <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-                  <h3>{tutorialSlides[tutorialStep]?.title}</h3>
-                  <p style={{ lineHeight: 1.6 }}>{tutorialSlides[tutorialStep]?.body}</p>
-                  <div style={{ marginTop: '0.75rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px' }}>
-                    <p style={{ margin: '0 0 0.4rem 0', fontWeight: 600 }}>Checklista</p>
-                    <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
-                      {checklistHints.map((h) => (
-                        <li key={h.id} style={{ opacity: h.done ? 0.5 : 1 }}>
-                          {h.done ? '[klar]' : '[ ]'} {h.text}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                    <button
-                      className="btn btn-ghost"
-                      onClick={() => {
-                        if (tutorialStep > 0) setTutorialStep((s) => s - 1)
-                      }}
-                      disabled={tutorialStep === 0}
-                    >
-                      Föregående
-                    </button>
-                    {tutorialStep < tutorialSlides.length - 1 ? (
-                      <button
-                        className="btn btn-next"
-                        onClick={() => setTutorialStep((s) => s + 1)}
-                      >
-                        Nästa
-                      </button>
-                    ) : (
-                      <button
-                        className="btn btn-next"
-                        onClick={() => {
-                          setShowTutorial(false)
-                          window.localStorage.setItem('leyla-seen-tutorial', '1')
-                        }}
-                      >
-                        Klart
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
