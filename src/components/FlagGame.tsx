@@ -75,7 +75,7 @@ const difficultySettings: Record<Difficulty, { time: number; multiplier: number;
 }
 
 export default function FlagGame() {
-  const { game } = useCurrentGame()
+  useCurrentGame()
   const navigate = useNavigate()
   const [country, setCountry] = useState<Country | null>(null)
   const [selected, setSelected] = useState<string[]>([])
@@ -89,7 +89,6 @@ export default function FlagGame() {
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [showTutorial] = useState(false)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(() => {
