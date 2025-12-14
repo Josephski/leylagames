@@ -235,7 +235,8 @@ export default function FlagGame() {
     setFlagError(false)
     setShowRoundSummary(false)
     if (newCountry) {
-      setFlagSrc(`/flags/${newCountry.code.toLowerCase()}.png`)
+      const flagPath = `${import.meta.env.BASE_URL}flags/${newCountry.code.toLowerCase()}.png`
+      setFlagSrc(flagPath)
     }
     setRoundScore(0)
   }, [clearTimer, customTime, pickCountry])
@@ -554,8 +555,8 @@ export default function FlagGame() {
                 src={flagSrc}
                 alt={`Flagga för ${country.name}`}
                 className="flag-image"
-                  onError={() => {
-                    if (flagSrc?.startsWith('/flags/')) {
+                onError={() => {
+                    if (flagSrc && flagSrc.includes('flags/')) {
                       setFlagSrc(`https://flagcdn.com/h120/${country.code.toLowerCase()}.png`)
                     } else {
                       setFlagError(true)
