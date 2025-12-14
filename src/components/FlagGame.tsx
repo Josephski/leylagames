@@ -393,12 +393,19 @@ export default function FlagGame() {
     ? Math.max(0, Math.min(100, (timeLeft / customTime) * 100))
     : 100
 
+  const reorder = (list: string[], startIndex: number, endIndex: number) => {
+    const result = Array.from(list)
+    const [removed] = result.splice(startIndex, 1)
+    result.splice(endIndex, 0, removed)
+    return result
+  }
+
   const onDragEnd = (result: DropResult) => {
     if (!result.destination || completed) return
     const from = result.source.index
     const to = result.destination.index
     if (from === to) return
-    setSelected((prev) => arrayMove(prev, from, to))
+    setSelected((prev) => reorder(prev, from, to))
   }
 
   return (
