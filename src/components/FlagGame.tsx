@@ -508,7 +508,6 @@ export default function FlagGame() {
                           setTimeLeft(newTime)
                           setMessage(`Svårighet: ${difficultySettings[level].label}`)
                           setMessageType('info')
-                          setChecklistHints((hints) => hints.map(h => h.id === 'difficulty' ? { ...h, done: true } : h))
                           setTimeout(() => setMessage(''), 1200)
                         }}
                         aria-pressed={difficulty === level}
