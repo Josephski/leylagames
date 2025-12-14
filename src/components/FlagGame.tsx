@@ -1,21 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  arrayMove,
-  rectSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable'
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { getRandomCountry, shuffleLetters, type Country, getCountryByCode } from '../data/countries'
 import Leaderboard from './Leaderboard'
 import { useCurrentGame } from '../platform/GameContext'
@@ -151,10 +135,6 @@ export default function FlagGame() {
   const [timeLeft, setTimeLeft] = useState<number>(customTime)
 
   const timerRef = useRef<number | null>(null)
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -297,27 +277,18 @@ export default function FlagGame() {
     playCountryName()
   }, [audioHelp, country, playCountryName])
 
-  const handleMouseDown = (index: number, e: React.MouseEvent) => {
+  const handleMouseDown = (index: number) => {
     if (completed) return
-    e.preventDefault()
     setDraggedIndex(index)
-  }
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (completed) return
   }
 
   const handleMouseUp = () => {
     setDraggedIndex(null)
   }
 
-  const handleTouchStart = (index: number, e: React.TouchEvent) => {
+  const handleTouchStart = (index: number) => {
     if (completed) return
     setDraggedIndex(index)
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (completed) return
   }
 
   const handleTouchEnd = () => {
@@ -559,14 +530,12 @@ export default function FlagGame() {
             )}
 
             <div className="game-board">
-              <div
-                className="answer-card"
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              >
+            <div
+              className="answer-card"
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchEnd={handleTouchEnd}
+            >
                 <div className="card-label">Arrangera bokstäverna:</div>
                 <div
                   className="letters-container"
@@ -574,15 +543,15 @@ export default function FlagGame() {
                 >
                   {selected.map((letter, index) => (
                     <div
-                      key={`${letter}-${index}`}
-                      className={`letter-box ${draggedIndex === index ? 'dragging' : ''}`}
-                      onMouseDown={(e) => handleMouseDown(index, e)}
-                      onTouchStart={(e) => handleTouchStart(index, e)}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`Bokstav ${letter}, position ${index + 1}`}
-                      onKeyDown={(e) => handleLetterKeyDown(index, e)}
-                    >
+                  key={`${letter}-${index}`}
+                  className={`letter-box ${draggedIndex === index ? 'dragging' : ''}`}
+                  onMouseDown={() => handleMouseDown(index)}
+                  onTouchStart={() => handleTouchStart(index)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Bokstav ${letter}, position ${index + 1}`}
+                  onKeyDown={(e) => handleLetterKeyDown(index, e)}
+                >
                       {letter}
                     </div>
                   ))}
