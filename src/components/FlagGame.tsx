@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
+import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided, type DraggableStateSnapshot, type DroppableProvided } from '@hello-pangea/dnd'
 import { getRandomCountry, shuffleLetters, type Country, getCountryByCode } from '../data/countries'
 import Leaderboard from './Leaderboard'
 import { useCurrentGame } from '../platform/GameContext'
@@ -527,7 +527,7 @@ export default function FlagGame() {
               <div className="answer-card">
                 <div className="card-label">Arrangera bokstäverna:</div>
                 <Droppable droppableId="letters" direction="horizontal">
-                  {(provided) => (
+                  {(provided: DroppableProvided) => (
                     <div
                       className="letters-container"
                       ref={provided.innerRef}
@@ -535,7 +535,7 @@ export default function FlagGame() {
                     >
                       {selected.map((letter, index) => (
                         <Draggable key={`${letter}-${index}`} draggableId={`${letter}-${index}`} index={index}>
-                          {(dragProvided, snapshot) => (
+                          {(dragProvided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                             <div
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
