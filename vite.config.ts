@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? '/leylagames/' : '/',
+  base: process.env.GITHUB_ACTIONS
+    ? `/${process.env.GITHUB_REPOSITORY?.split('/')[1] || 'leylagames'}/`
+    : '/',
   plugins: [react()],
   server: {
     host: true,
