@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getRandomCountry, shuffleLetters, type Country, getCountryByCode } from '../data/countries'
 import Leaderboard from './Leaderboard'
 import { useCurrentGame } from '../platform/GameContext'
+import { useLanguage } from '../i18n/LanguageProvider'
 import './FlagGame.css'
 
 const IconSound = () => (
@@ -68,16 +69,17 @@ const BASE_POINTS = 10
 const STREAK_BONUS = 2
 
 type Difficulty = 'easy' | 'medium' | 'hard'
-const difficultySettings: Record<Difficulty, { time: number; multiplier: number; label: string }> = {
-  easy: { time: 60, multiplier: 1, label: 'Lätt' },
-  medium: { time: 45, multiplier: 1.2, label: 'Mellan' },
-  hard: { time: 30, multiplier: 1.5, label: 'Svår' },
+const difficultySettings: Record<Difficulty, { time: number; multiplier: number }> = {
+  easy: { time: 60, multiplier: 1 },
+  medium: { time: 45, multiplier: 1.2 },
+  hard: { time: 30, multiplier: 1.5 },
 }
 
 export default function FlagGame() {
   // Context is provided via GameProvider; we don't consume game data here.
   useCurrentGame()
   const navigate = useNavigate()
+  const { language, setLanguage, t } = useLanguage()
   const [country, setCountry] = useState<Country | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [completed, setCompleted] = useState(false)
@@ -135,6 +137,8 @@ export default function FlagGame() {
   const [timeLeft, setTimeLeft] = useState<number>(customTime)
 
   const timerRef = useRef<number | null>(null)
+  const voiceLanguagePrefix = language === 'da' ? 'da' : 'sv'
+  const defaultVoiceLang = language === 'da' ? 'da-DK' : 'sv-SE'
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -146,13 +150,13 @@ export default function FlagGame() {
   const handleTimeUp = useCallback(() => {
     if (completed || !country || !timeLimitEnabled) return
     setCompleted(true)
-    setMessage(`Tiden är ute! Rätt svar: ${country.name}`)
+    setMessage(t('flagGame.timeUp', { country: country.name }))
     setMessageType('error')
     setShowAnswer(true)
     setStreak(0)
     setRoundsPlayed((r) => r + 1)
     clearTimer()
-  }, [clearTimer, completed, country, timeLimitEnabled])
+  }, [clearTimer, completed, country, t, timeLimitEnabled])
 
   const startTimer = useCallback(() => {
     if (!timeLimitEnabled) {
@@ -176,11 +180,11 @@ export default function FlagGame() {
 
   const pickCountry = useCallback(() => {
     if (forcedCountryCode) {
-      const specific = getCountryByCode(forcedCountryCode)
+      const specific = getCountryByCode(forcedCountryCode, language)
       if (specific) return specific
     }
-    return getRandomCountry()
-  }, [forcedCountryCode])
+    return getRandomCountry(language)
+  }, [forcedCountryCode, language])
 
   const loadNewCountry = useCallback(() => {
     clearTimer()
@@ -247,9 +251,9 @@ export default function FlagGame() {
       const utterance = new SpeechSynthesisUtterance(country.name)
       const voice = selectedVoice
         ? voices.find((v) => v.name === selectedVoice)
-        : voices.find((v) => v.lang && v.lang.toLowerCase().startsWith('sv'))
+        : voices.find((v) => v.lang && v.lang.toLowerCase().startsWith(voiceLanguagePrefix))
       if (voice) utterance.voice = voice
-      utterance.lang = voice?.lang || 'sv-SE'
+      utterance.lang = voice?.lang || defaultVoiceLang
       utterance.rate = 0.95
       utterance.pitch = 1.0
       utterance.volume = 1.0
@@ -258,7 +262,7 @@ export default function FlagGame() {
     } catch (err) {
       console.error(err)
     }
-  }, [audioHelp, country, selectedVoice, voices])
+  }, [audioHelp, country, defaultVoiceLang, selectedVoice, voiceLanguagePrefix, voices])
 
   useEffect(() => {
     if (!country || completed) return
@@ -287,7 +291,15 @@ export default function FlagGame() {
       const multiplier = difficultySettings[difficulty].multiplier
       const total = Math.round((BASE_POINTS + timeBonus + streakBonus) * multiplier)
       setRoundScore(total)
-      setMessage(`Rätt! +${total} poäng (bas ${BASE_POINTS}, tid ${timeBonus}, streak ${streakBonus}, x${multiplier})`)
+      setMessage(
+        t('flagGame.correct', {
+          total,
+          base: BASE_POINTS,
+          timeBonus,
+          streakBonus,
+          multiplier,
+        }),
+      )
       setMessageType('success')
       setShowRoundSummary(true)
       setScore((s) => s + total)
@@ -300,7 +312,7 @@ export default function FlagGame() {
       })
       clearTimer()
     } else {
-      setMessage('Inte rätt. Försök igen!')
+      setMessage(t('flagGame.incorrect'))
       setMessageType('error')
       setTimeout(() => setMessage(''), 1500)
     }
@@ -344,8 +356,8 @@ export default function FlagGame() {
     const load = () => {
       const available = speechSynthesis.getVoices() || []
       setVoices(available)
-      const sv = available.find((v) => v.lang && v.lang.toLowerCase().startsWith('sv'))
-      if (sv) setSelectedVoice(sv.name)
+      const preferred = available.find((v) => v.lang && v.lang.toLowerCase().startsWith(voiceLanguagePrefix))
+      if (preferred) setSelectedVoice(preferred.name)
     }
 
     load()
@@ -353,20 +365,20 @@ export default function FlagGame() {
     return () => {
       speechSynthesis.onvoiceschanged = null
     }
-  }, [])
+  }, [voiceLanguagePrefix])
 
   const refreshVoices = () => {
     const available = speechSynthesis.getVoices() || []
     setVoices(available)
-    const sv = available.find((v) => v.lang && v.lang.toLowerCase().startsWith('sv'))
-    if (sv) setSelectedVoice(sv.name)
-    setMessage('Röster uppdaterade')
+    const preferred = available.find((v) => v.lang && v.lang.toLowerCase().startsWith(voiceLanguagePrefix))
+    if (preferred) setSelectedVoice(preferred.name)
+    setMessage(t('flagGame.voiceUpdated'))
     setMessageType('info')
     setTimeout(() => setMessage(''), 1500)
   }
 
   if (!country) {
-    return <div className="flag-game">Laddar...</div>
+    return <div className="flag-game">{t('flagGame.loading')}</div>
   }
 
   const accuracy = roundsPlayed > 0 ? Math.round((correctRounds / roundsPlayed) * 100) : 100
@@ -398,7 +410,7 @@ export default function FlagGame() {
             {!flagError && flagSrc ? (
               <img
                 src={flagSrc}
-                alt={`Flagga för ${country.name}`}
+                alt={t('flagGame.flagAlt', { country: country.name })}
                 className="flag-image"
                 onError={() => {
                     if (flagSrc && flagSrc.includes('flags/')) {
@@ -409,7 +421,7 @@ export default function FlagGame() {
                   }}
                 />
             ) : (
-              <div className="flag-fallback" aria-label={`Flagga för ${country.name}`}>
+              <div className="flag-fallback" aria-label={t('flagGame.flagAria', { country: country.name })}>
                 <span className="flag-emoji" aria-hidden="true">{country.flag}</span>
               </div>
             )}
@@ -424,8 +436,17 @@ export default function FlagGame() {
             {showSettings && (
               <div className="settings-overlay" onClick={() => setShowSettings(false)}>
                 <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-                  <h3>Inställningar</h3>
-                  <label style={{ display: 'block', margin: '0.5rem 0' }}>Svårighet</label>
+                  <h3>{t('flagGame.settings.title')}</h3>
+                  <label style={{ display: 'block', margin: '0.5rem 0' }}>{t('flagGame.settings.language')}</label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value === 'da' ? 'da' : 'sv')}
+                    className="voice-select"
+                  >
+                    <option value="sv">{t('language.sv')}</option>
+                    <option value="da">{t('language.da')}</option>
+                  </select>
+                  <label style={{ display: 'block', margin: '0.5rem 0' }}>{t('flagGame.settings.difficulty')}</label>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                     {(['easy','medium','hard'] as Difficulty[]).map((level) => (
                       <button
@@ -436,19 +457,17 @@ export default function FlagGame() {
                           const newTime = difficultySettings[level].time
                           setCustomTime(newTime)
                           setTimeLeft(newTime)
-                          setMessage(`Svårighet: ${difficultySettings[level].label}`)
+                          setMessage(t('flagGame.difficultyNotice', { label: t(`flagGame.difficulty.${level}`) }))
                           setMessageType('info')
                           setTimeout(() => setMessage(''), 1200)
                         }}
                         aria-pressed={difficulty === level}
                       >
-                        {difficultySettings[level].label}
+                        {t(`flagGame.difficulty.${level}`)}
                       </button>
                     ))}
                   </div>
-                  <label style={{ display: 'block', margin: '0.5rem 0' }}>
-                    Tidsbegränsning
-                  </label>
+                  <label style={{ display: 'block', margin: '0.5rem 0' }}>{t('flagGame.settings.timeLimit')}</label>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
                     <button
                       className={`btn ${timeLimitEnabled ? 'btn-selected' : 'btn-ghost'}`}
@@ -459,7 +478,7 @@ export default function FlagGame() {
                       }}
                       aria-pressed={timeLimitEnabled}
                     >
-                      På
+                      {t('flagGame.settings.on')}
                     </button>
                     <button
                       className={`btn ${!timeLimitEnabled ? 'btn-selected' : 'btn-ghost'}`}
@@ -470,7 +489,7 @@ export default function FlagGame() {
                       }}
                       aria-pressed={!timeLimitEnabled}
                     >
-                      Av
+                      {t('flagGame.settings.off')}
                     </button>
                     <input
                       type="number"
@@ -484,25 +503,25 @@ export default function FlagGame() {
                         if (timeLimitEnabled) startTimer()
                       }}
                       className="time-input"
-                      aria-label="Tidsgräns i sekunder"
+                      aria-label={t('flagGame.settings.timeInputAria')}
                     />
-                    <span style={{ fontSize: '0.95rem' }}>sekunder</span>
+                    <span style={{ fontSize: '0.95rem' }}>{t('flagGame.settings.seconds')}</span>
                   </div>
-                  <label style={{ display: 'block', margin: '0.5rem 0' }}>Röst</label>
+                  <label style={{ display: 'block', margin: '0.5rem 0' }}>{t('flagGame.settings.voice')}</label>
                   <select
                     value={selectedVoice ?? ''}
                     onChange={(e) => setSelectedVoice(e.target.value || null)}
                     className="voice-select"
                   >
-                    <option value="">(Auto röst)</option>
+                    <option value="">{t('flagGame.settings.autoVoice')}</option>
                     {voices.map((v) => (
                       <option key={v.name} value={v.name}>{v.name} – {v.lang}</option>
                     ))}
                   </select>
 
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                    <button className="btn" onClick={refreshVoices}>Uppdatera röster</button>
-                    <button className="btn" onClick={() => setShowSettings(false)}>Stäng</button>
+                    <button className="btn" onClick={refreshVoices}>{t('flagGame.settings.updateVoices')}</button>
+                    <button className="btn" onClick={() => setShowSettings(false)}>{t('flagGame.settings.close')}</button>
                   </div>
                 </div>
               </div>
@@ -511,15 +530,15 @@ export default function FlagGame() {
             {showHelp && (
               <div className="settings-overlay" onClick={() => setShowHelp(false)}>
                 <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-                  <h3>Hur spelar jag?</h3>
+                  <h3>{t('flagGame.help.title')}</h3>
                   <ul style={{ paddingLeft: '1.2rem', lineHeight: 1.5 }}>
-                    <li>Dra bokstäver eller använd vänster/höger piltangenter för att flytta dem.</li>
-                    <li>Tid kvar + streak ger bonuspoäng. Svårighet multiplicerar poängen.</li>
-                    <li>Lyssna-knappen läser upp landsnamnet om TTS finns.</li>
-                    <li>Topplista kräver Supabase (miljövariabler VITE_SUPABASE_URL/KEY).</li>
+                    {t('flagGame.help.items.0') && <li>{t('flagGame.help.items.0')}</li>}
+                    {t('flagGame.help.items.1') && <li>{t('flagGame.help.items.1')}</li>}
+                    {t('flagGame.help.items.2') && <li>{t('flagGame.help.items.2')}</li>}
+                    {t('flagGame.help.items.3') && <li>{t('flagGame.help.items.3')}</li>}
                   </ul>
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                    <button className="btn" onClick={() => setShowHelp(false)}>Stäng</button>
+                    <button className="btn" onClick={() => setShowHelp(false)}>{t('flagGame.help.close')}</button>
                   </div>
                 </div>
               </div>
@@ -527,7 +546,7 @@ export default function FlagGame() {
 
             <div className="game-board">
             <div className="answer-card">
-              <div className="card-label">Arrangera bokstäverna:</div>
+              <div className="card-label">{t('flagGame.arrangeLetters')}</div>
               <div className="letters-container">
                 {selected.map((letter, index) => (
                   <div
@@ -535,7 +554,7 @@ export default function FlagGame() {
                     className={`letter-box ${dragIndex === index ? 'dragging' : ''}`}
                     tabIndex={0}
                     role="button"
-                    aria-label={`Bokstav ${letter}, position ${index + 1}`}
+                    aria-label={t('flagGame.letterAria', { letter, position: index + 1 })}
                     onKeyDown={(e) => handleLetterKeyDown(index, e)}
                     onPointerDown={() => handlePointerDown(index)}
                     onPointerEnter={() => handlePointerEnter(index)}
@@ -557,7 +576,7 @@ export default function FlagGame() {
                 <button
                   className="btn btn-check"
                   onClick={() => handleCheckAnswer()}
-                  aria-label="Kontrollera svar"
+                  aria-label={t('flagGame.checkAnswer')}
                 >
                   ✓
                 </button>
@@ -567,27 +586,27 @@ export default function FlagGame() {
                 <button
                   className="btn btn-sound icon-only"
                   onClick={playCountryName}
-                  title="Spela upp landets namn"
-                  aria-label="Lyssna på landets namn"
+                  title={t('flagGame.listenTitle')}
+                  aria-label={t('flagGame.listenAria')}
                 >
                   <IconSound />
-                  <span className="sr-only">Lyssna</span>
+                  <span className="sr-only">{t('flagGame.listen')}</span>
                 </button>
 
                 {completed ? (
-                  <button className="btn btn-next icon-only" onClick={loadNewCountry} aria-label="Nästa runda">
+                  <button className="btn btn-next icon-only" onClick={loadNewCountry} aria-label={t('flagGame.nextRound')}>
                     <IconNext />
-                    <span className="sr-only">Nästa</span>
+                    <span className="sr-only">{t('flagGame.next')}</span>
                   </button>
                 ) : (
                   <>
                   <button
                     className="btn btn-hint icon-only"
                     onClick={toggleShowAnswer}
-                    aria-label="Visa svar"
+                    aria-label={t('flagGame.showAnswer')}
                   >
                     {showAnswer ? <IconEyeOff /> : <IconEye />}
-                    <span className="sr-only">{showAnswer ? 'Dölj svar' : 'Visa svar'}</span>
+                    <span className="sr-only">{showAnswer ? t('flagGame.hideAnswer') : t('flagGame.showAnswer')}</span>
                   </button>
                   {devMode && (
                     <button
@@ -599,16 +618,16 @@ export default function FlagGame() {
                         handleCheckAnswer(target)
                       }}
                     >
-                      Autofyll svar (dev)
+                      {t('flagGame.autoFill')}
                     </button>
                   )}
                   <button
                     className="btn btn-skip icon-only"
                     onClick={handleSkip}
-                    aria-label="Hoppa över"
+                    aria-label={t('flagGame.skip')}
                   >
                     <IconSkip />
-                    <span className="sr-only">Hoppa över</span>
+                    <span className="sr-only">{t('flagGame.skip')}</span>
                   </button>
                 </>
               )}
@@ -616,7 +635,7 @@ export default function FlagGame() {
 
             {showAnswer && !completed && (
               <div className="hint">
-                Svar: <strong>{country.name}</strong>
+                {t('flagGame.answer')} <strong>{country.name}</strong>
               </div>
             )}
 
@@ -624,62 +643,68 @@ export default function FlagGame() {
 
               {showRoundSummary && completed && (
                 <div className="hint" style={{ marginTop: '0.5rem' }}>
-                  <div><strong>Runda klar</strong></div>
-                  <div>+{roundScore}p (svårighet x{difficultySettings[difficulty].multiplier}, streak {streak})</div>
-                  <div>Totalt: {score}p</div>
+                  <div><strong>{t('flagGame.roundComplete')}</strong></div>
+                  <div>
+                    {t('flagGame.roundSummary', {
+                      roundScore,
+                      multiplier: difficultySettings[difficulty].multiplier,
+                      streak,
+                    })}
+                  </div>
+                  <div>{t('flagGame.totalScore', { score })}</div>
                   <button
                     className="btn btn-ghost"
                     style={{ marginTop: '0.5rem' }}
                     onClick={() => setShowRoundSummary(false)}
                   >
-                    Stäng sammanfattning
+                    {t('flagGame.closeSummary')}
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          <aside className="stats-panel" aria-label="Statistik">
+          <aside className="stats-panel" aria-label={t('flagGame.statsLabel')}>
             <button
               className="back-link"
               onClick={() => navigate('/')}
-              aria-label="Tillbaka till spelbiblioteket"
+              aria-label={t('flagGame.backToLibrary')}
             >
-              ← Till spelbiblioteket
+              ← {t('flagGame.backToLibrary')}
             </button>
-            <div className="score-block">Poäng: {score}</div>
+            <div className="score-block">{t('flagGame.scoreLabel', { score })}</div>
             <div className="stats-actions">
               <button
                 className="settings-btn"
                 onClick={() => setShowSettings(true)}
-                aria-label="Inställningar"
-                title="Inställningar"
+                aria-label={t('flagGame.settings.title')}
+                title={t('flagGame.settings.title')}
               >
-                Inställningar
+                {t('flagGame.settings.title')}
               </button>
               <button
                 className="settings-btn"
                 onClick={() => setAudioHelp((v) => !v)}
-                aria-label="Ljudhjälp"
-                title="Ljudhjälp på/av"
+                aria-label={t('flagGame.audioHelp')}
+                title={t('flagGame.audioHelpTitle')}
               >
-                Ljudhjälp: {audioHelp ? 'På' : 'Av'}
+                {t('flagGame.audioHelpStatus', { status: audioHelp ? t('flagGame.settings.on') : t('flagGame.settings.off') })}
               </button>
               <button
                 className="settings-btn"
                 onClick={() => setShowHelp(true)}
-                aria-label="Hjälp"
-                title="Hjälp"
+                aria-label={t('flagGame.helpButton')}
+                title={t('flagGame.helpButton')}
               >
-                Hjälp
+                {t('flagGame.helpButton')}
               </button>
             <button
               className="settings-btn"
               onClick={() => setShowLeaderboard((v) => !v)}
-              aria-label="Topplista"
-              title="Topplista"
+              aria-label={t('flagGame.leaderboard')}
+              title={t('flagGame.leaderboard')}
               >
-                {showLeaderboard ? 'Stäng topplista' : 'Topplista'}
+                {showLeaderboard ? t('flagGame.closeLeaderboard') : t('flagGame.leaderboard')}
               </button>
             </div>
           <div className="stat-grid">
@@ -687,7 +712,7 @@ export default function FlagGame() {
                 ⏳ {timeLimitEnabled ? `${timeLeft}s` : '∞'}
               </div>
               <div className="stat-pill">
-                🔥 {streak} <span className="muted">(max {bestStreak})</span>
+                🔥 {streak} <span className="muted">{t('flagGame.maxStreak', { best: bestStreak })}</span>
               </div>
               <div className="stat-pill">
                 🎯 {accuracy}%
@@ -696,7 +721,7 @@ export default function FlagGame() {
                 ⭐ {roundScore}p
               </div>
               <div className="stat-pill">
-                ⚙️ {difficultySettings[difficulty].label}
+                ⚙️ {t(`flagGame.difficulty.${difficulty}`)}
               </div>
             </div>
             {showLeaderboard && (

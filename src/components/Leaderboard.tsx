@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { fetchGameLeaderboard } from '../platform/sdk'
 import { useCurrentGame } from '../platform/GameContext'
+import { useLanguage } from '../i18n/LanguageProvider'
 
 interface ScoreEntry {
   user_name: string
@@ -11,6 +12,7 @@ interface ScoreEntry {
 
 export default function Leaderboard({ gameId }: { gameId?: string }) {
   const ctx = useCurrentGame()
+  const { t } = useLanguage()
   const resolvedGameId = gameId ?? ctx.game.id
   const [scores, setScores] = useState<ScoreEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -23,11 +25,11 @@ export default function Leaderboard({ gameId }: { gameId?: string }) {
       const data = await fetchGameLeaderboard(resolvedGameId, 10)
       setScores(data || [])
     } catch (err: any) {
-      setError(err.message || 'Kunde inte hämta topplista')
+      setError(err.message || t('leaderboard.error'))
     } finally {
       setLoading(false)
     }
-  }, [resolvedGameId])
+  }, [resolvedGameId, t])
 
   useEffect(() => {
     load()
@@ -35,16 +37,16 @@ export default function Leaderboard({ gameId }: { gameId?: string }) {
 
   return (
     <div style={{ marginTop: '1rem' }}>
-      <h3>Topplista</h3>
+      <h3>{t('leaderboard.title')}</h3>
       {!isSupabaseConfigured && (
         <div style={{ marginBottom: '0.5rem', color: '#555', fontSize: '0.9rem' }}>
-          (Aktivera Supabase med VITE_SUPABASE_URL och VITE_SUPABASE_KEY för att spara poäng.)
+          {t('leaderboard.configureNote')}
         </div>
       )}
-      {loading && <div>Hämtar…</div>}
+      {loading && <div>{t('leaderboard.loading')}</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {!loading && !error && scores.length === 0 && (
-        <div>Inga poster ännu.</div>
+        <div>{t('leaderboard.empty')}</div>
       )}
       <ol>
         {scores.map((s: ScoreEntry, i: number) => (

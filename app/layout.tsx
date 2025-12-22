@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { initSentry } from '../src/sentry.client'
+import { LanguageProvider } from '../src/i18n/LanguageProvider'
 
 export const metadata: Metadata = {
   title: 'Leyla Games',
@@ -13,7 +14,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
   return (
     <html lang="sv">
-      <body>{children}</body>
+      <body>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   )
 }

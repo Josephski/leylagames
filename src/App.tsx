@@ -1,19 +1,21 @@
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom'
 import { games, getGameBySlug, gameCategories } from './platform/games'
 import { GameProvider } from './platform/GameContext'
+import { useLanguage } from './i18n/LanguageProvider'
 import './App.css'
 
 function GamePage() {
   const { slug } = useParams()
   const navigate = useNavigate()
   const game = slug ? getGameBySlug(slug) : undefined
+  const { t } = useLanguage()
 
   if (!game) {
     return (
       <div className="app">
         <div className="menu">
-          <h1>Spelet hittades inte</h1>
-          <button onClick={() => navigate('/')}>Tillbaka till start</button>
+          <h1>{t('errors.gameNotFound')}</h1>
+          <button onClick={() => navigate('/')}>{t('errors.backToStart')}</button>
         </div>
       </div>
     )
@@ -28,12 +30,24 @@ function GamePage() {
 
 function HomePage() {
   const navigate = useNavigate()
+  const { language, setLanguage, t } = useLanguage()
 
   return (
     <div className="app">
       <div className="menu">
-        <h1>Leyla Games</h1>
-        <p>En liten spelplattform där vi kan lägga till fler spel över tid.</p>
+        <h1>{t('home.title')}</h1>
+        <p>{t('home.leadAlt')}</p>
+        <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
+          <label htmlFor="lang-select-app">{t('labels.language')}</label>
+          <select
+            id="lang-select-app"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value === 'da' ? 'da' : 'sv')}
+          >
+            <option value="sv">{t('language.sv')}</option>
+            <option value="da">{t('language.da')}</option>
+          </select>
+        </div>
         <div style={{ marginTop: '1rem' }}>
           <button
             onClick={() => {
@@ -41,13 +55,13 @@ function HomePage() {
               navigate(`/games/flag-quiz${search}`)
             }}
           >
-            Start Game
+            {t('home.startGame')}
           </button>
         </div>
         {gameCategories.map((cat) => (
           <section key={cat.id} style={{ marginTop: '1.5rem', textAlign: 'left', maxWidth: '640px' }}>
-            <h2 style={{ marginBottom: '0.25rem' }}>{cat.name}</h2>
-            {cat.description && <p style={{ marginTop: 0 }}>{cat.description}</p>}
+            <h2 style={{ marginBottom: '0.25rem' }}>{t(`categories.${cat.id}.name`)}</h2>
+            {cat.description && <p style={{ marginTop: 0 }}>{t(`categories.${cat.id}.description`)}</p>}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.5rem' }}>
               {cat.gameIds
                 .map((id) => games.find((g) => g.id === id))
@@ -59,8 +73,8 @@ function HomePage() {
                     className="game-card-link"
                   >
                     <div className="game-card">
-                      <h3>{game!.name}</h3>
-                      <p>{game!.shortDescription}</p>
+                      <h3>{t(`games.${game!.id}.name`)}</h3>
+                      <p>{t(`games.${game!.id}.shortDescription`)}</p>
                     </div>
                   </Link>
                 ))}
@@ -68,10 +82,7 @@ function HomePage() {
           </section>
         ))}
         <div style={{ marginTop: '2rem', fontSize: '0.85rem', opacity: 0.8 }}>
-          <p>
-            Plattformen är byggd så att vi enkelt kan lägga till fler spel, koppla på global leaderboard och senare flytta
-            till t.ex. Next.js/edge utan att ändra varje spel.
-          </p>
+          <p>{t('home.footerNote')}</p>
         </div>
       </div>
     </div>
