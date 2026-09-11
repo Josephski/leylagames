@@ -81,7 +81,7 @@ async function onHostMessage(msg: PeerMsg) {
     const next: ImposterRoom = {
       ...latest,
       version: (latest.version ?? 0) + 1,
-      players: [...latest.players, { ...msg.player, joinedVia: 'qr', isHost: false }],
+      players: [...latest.players, { ...msg.player, joinedVia: 'qr', isHost: false, score: msg.player.score ?? 0 }],
     }
     if (persist) await persist(next)
     broadcast(next)

@@ -10,16 +10,22 @@ import {
   MAX_PLAYERS,
   MIN_PLAYERS,
   assignImposters,
+  awardGuessScores,
+  awardVoteScores,
   displayWord,
   getPlayer,
   guessMatchesWord,
-  majorityVote,
   maxImposters,
   newPlayerId,
   newRoomCode,
+  playerScore,
+  shuffledOrder,
   suggestedImposters,
+  tallyRoundChoice,
   type ImposterPlayer,
   type ImposterRoom,
+  type PlayMode,
+  type RoundChoice,
 } from './engine'
 import {
   fetchRoom,
@@ -30,7 +36,7 @@ import {
   saveRoom,
   subscribeRoom,
 } from './room'
-import { pickImposterWord } from '../../data/imposterWords'
+import { pickImposterWord, pickWordOptions } from '../../data/imposterWords'
 import { InviteQr } from './InviteQr'
 import {
   connectGuestWithRetry,
@@ -100,18 +106,22 @@ function settleMobileViewport() {
   window.setTimeout(() => window.scrollTo(0, 0), 320)
 }
 
-function emptyRoom(code: string, host: ImposterPlayer): ImposterRoom {
+function emptyRoom(code: string, host: ImposterPlayer, playMode: PlayMode): ImposterRoom {
   return {
     code,
     version: 0,
     phase: 'lobby',
+    playMode,
     categoryId: 'animals',
     word: { en: '', ar: '', sv: '' },
+    wordOptions: [],
     imposterCount: 1,
     players: [host],
     clueOrder: [],
     clues: [],
+    roundVotes: {},
     votes: {},
+    wordGuesses: {},
     accusedId: null,
     guess: null,
     winner: null,
@@ -135,10 +145,9 @@ export default function ImposterGame() {
   const [copied, setCopied] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [clue, setClue] = useState('')
-  const [guess, setGuess] = useState('')
+  const [playMode, setPlayMode] = useState<PlayMode>('inPerson')
   const [activeId, setActiveId] = useState(selfId)
   const [localName, setLocalName] = useState('')
-  const [now, setNow] = useState(Date.now())
 
   const creatingRef = useRef(false)
   const navLockedUntil = useRef(0)
@@ -196,23 +205,30 @@ export default function ImposterGame() {
   }, [selfId])
 
   useEffect(() => {
-    if (room?.phase !== 'discuss' || !room.discussEndsAt) return
-    const tick = window.setInterval(() => setNow(Date.now()), 250)
-    return () => window.clearInterval(tick)
-  }, [room?.phase, room?.discussEndsAt])
-
-  useEffect(() => {
-    if (!room || room.phase !== 'clues') return
-    const turnId = room.clueOrder[room.clues.length]
-    if (turnId && readLocals(room.code).includes(turnId)) setActiveId(turnId)
+    if (!room) return
+    const locals = readLocals(room.code)
+    if (room.phase === 'clues') {
+      const turnId = room.clueOrder[room.clues.length]
+      if (turnId && locals.includes(turnId)) setActiveId(turnId)
+      return
+    }
+    if (room.phase === 'roundVote') {
+      const nextSeat = room.players.find((player) => locals.includes(player.id) && !room.roundVotes?.[player.id])
+      if (nextSeat) setActiveId(nextSeat.id)
+      return
+    }
+    if (room.phase === 'vote') {
+      const nextSeat = room.players.find((player) => locals.includes(player.id) && !room.votes[player.id])
+      if (nextSeat) setActiveId(nextSeat.id)
+      return
+    }
+    if (room.phase === 'wordGuess') {
+      const nextSeat = room.players.find(
+        (player) => player.isImposter && locals.includes(player.id) && !room.wordGuesses?.[player.id],
+      )
+      if (nextSeat) setActiveId(nextSeat.id)
+    }
   }, [room])
-
-  useEffect(() => {
-    if (!room || room.phase !== 'discuss' || !room.discussEndsAt || Date.now() < room.discussEndsAt) return
-    void patchRoom(room.code, (current) =>
-      current.phase === 'discuss' ? { ...current, phase: 'vote', discussEndsAt: null } : current,
-    )
-  }, [now, room])
 
   const categoryLabel = useCallback(
     (id: string) => t(`imposter.categories.${id}`),
@@ -253,11 +269,12 @@ export default function ImposterGame() {
       id: selfId,
       name: trimmed,
       isHost: true,
-      isImposter: false,
-      ready: false,
-      joinedVia: 'local',
-    }
-    const created = emptyRoom(newRoomCode(), host)
+        isImposter: false,
+        ready: false,
+        joinedVia: 'local',
+        score: 0,
+      }
+      const created = emptyRoom(newRoomCode(), host, playMode)
     rememberLocal(created.code, selfId)
     syncRoomUrl(created.code)
     setActiveId(selfId)
@@ -310,6 +327,7 @@ export default function ImposterGame() {
         isImposter: false,
         ready: false,
         joinedVia: 'qr',
+        score: 0,
       }
       if (!isSupabaseConfigured) {
         guestJoin(guest)
@@ -356,7 +374,7 @@ export default function ImposterGame() {
       if (current.players.length >= MAX_PLAYERS) throw new Error('full')
       return {
         ...current,
-        players: [...current.players, { id, name: trimmed, isHost: false, isImposter: false, ready: false, joinedVia: 'local' }],
+        players: [...current.players, { id, name: trimmed, isHost: false, isImposter: false, ready: false, joinedVia: 'local', score: 0 }],
       }
     })
     rememberLocal(room.code, id)
@@ -375,6 +393,9 @@ export default function ImposterGame() {
         ...current,
         phase: 'reveal',
         word: pickImposterWord(current.categoryId),
+        wordOptions: [],
+        wordGuesses: {},
+        roundVotes: {},
         imposterCount: count,
         players: assigned,
         clueOrder: order,
@@ -413,24 +434,59 @@ export default function ImposterGame() {
       if (current.phase !== 'clues') return current
       const expected = current.clueOrder[current.clues.length]
       if (expected !== me.id) return current
-      const clues = [...current.clues, { playerId: me.id, text }]
+      const clues = [...current.clues, { playerId: me.id, text, spoken: false }]
       const done = clues.length === current.players.length
       return {
         ...current,
         clues,
-        phase: done ? 'discuss' : 'clues',
-        discussEndsAt: done ? Date.now() + 60_000 : null,
+        phase: done ? 'roundVote' : 'clues',
+        roundVotes: done ? {} : current.roundVotes,
+        discussEndsAt: null,
       }
     })
     setClue('')
     setError('')
   }
 
-  const startVote = () => {
-    if (!room) return
-    void patchRoom(room.code, (current) =>
-      current.phase === 'discuss' ? { ...current, phase: 'vote', discussEndsAt: null } : current,
-    )
+  const markSaid = async () => {
+    if (!room || !me) return
+    await patchRoom(room.code, (current) => {
+      if (current.phase !== 'clues') return current
+      const expected = current.clueOrder[current.clues.length]
+      if (expected !== me.id) return current
+      const clues = [...current.clues, { playerId: me.id, text: '', spoken: true }]
+      const done = clues.length === current.players.length
+      return {
+        ...current,
+        clues,
+        phase: done ? 'roundVote' : 'clues',
+        roundVotes: done ? {} : current.roundVotes,
+        discussEndsAt: null,
+      }
+    })
+    setError('')
+  }
+
+  const castRoundVote = (choice: RoundChoice) => {
+    if (!room || !me) return
+    void patchRoom(room.code, (current) => {
+      if (current.phase !== 'roundVote') return current
+      const roundVotes = { ...(current.roundVotes ?? {}), [me.id]: choice }
+      if (Object.keys(roundVotes).length < current.players.length) {
+        return { ...current, roundVotes }
+      }
+      const next = tallyRoundChoice(roundVotes)
+      if (next === 'vote') {
+        return { ...current, roundVotes, votes: {}, phase: 'vote' }
+      }
+      return {
+        ...current,
+        roundVotes: {},
+        clues: [],
+        clueOrder: shuffledOrder(current.players.map((player) => player.id)),
+        phase: 'clues',
+      }
+    })
   }
 
   const castVote = (targetId: string) => {
@@ -441,31 +497,31 @@ export default function ImposterGame() {
       if (Object.keys(votes).length < current.players.length) {
         return { ...current, votes }
       }
-      const accusedId = majorityVote(
+      return {
+        ...current,
         votes,
-        current.players.map((player) => player.id),
-      )
-      if (!accusedId) {
-        return { ...current, votes, accusedId: null, winner: 'imposters', phase: 'result' }
+        players: awardVoteScores(current.players, votes),
+        wordOptions: pickWordOptions(current.categoryId, current.word),
+        wordGuesses: {},
+        phase: 'wordGuess',
       }
-      const accused = current.players.find((player) => player.id === accusedId)
-      if (!accused?.isImposter) {
-        return { ...current, votes, accusedId, winner: 'imposters', phase: 'result' }
-      }
-      return { ...current, votes, accusedId, phase: 'guess' }
     })
   }
 
-  const submitGuess = async (gaveUp = false) => {
+  const pickSecretWord = (wordEn: string) => {
     if (!room || !me?.isImposter) return
-    const text = guess.trim()
-    await patchRoom(room.code, (current) => {
-      if (current.phase !== 'guess') return current
-      const correct = !gaveUp && guessMatchesWord(text, current.word)
+    void patchRoom(room.code, (current) => {
+      if (current.phase !== 'wordGuess') return current
+      const wordGuesses = { ...(current.wordGuesses ?? {}), [me.id]: wordEn }
+      const imposters = current.players.filter((player) => player.isImposter)
+      if (imposters.some((player) => !wordGuesses[player.id])) {
+        return { ...current, wordGuesses }
+      }
       return {
         ...current,
-        guess: gaveUp ? '' : text,
-        winner: correct ? 'imposters' : 'civilians',
+        wordGuesses,
+        guess: wordEn,
+        players: awardGuessScores(current.players, wordGuesses, current.word),
         phase: 'result',
       }
     })
@@ -477,7 +533,15 @@ export default function ImposterGame() {
       ...current,
       phase: 'lobby',
       word: { en: '', ar: '', sv: '' },
-      players: current.players.map((player) => ({ ...player, isImposter: false, ready: false })),
+      wordOptions: [],
+      wordGuesses: {},
+      roundVotes: {},
+      players: current.players.map((player) => ({
+        ...player,
+        isImposter: false,
+        ready: false,
+        score: playerScore(player),
+      })),
       clueOrder: [],
       clues: [],
       votes: {},
@@ -524,8 +588,7 @@ export default function ImposterGame() {
   }
 
   const wordLabel = room?.word.en ? displayWord(room.word, language) : ''
-  const remainingDiscuss =
-    room?.discussEndsAt ? Math.max(0, Math.ceil((room.discussEndsAt - now) / 1000)) : 0
+  const mode = room?.playMode ?? playMode
 
   const localPlayers = useMemo(() => {
     if (!room) return []
@@ -568,6 +631,27 @@ export default function ImposterGame() {
               maxLength={18}
             />
           </label>
+          {!invited && (
+            <fieldset className="imposter-mode">
+              <legend>{t('imposter.playMode')}</legend>
+              <button
+                type="button"
+                className={playMode === 'online' ? 'is-picked' : ''}
+                onClick={() => setPlayMode('online')}
+              >
+                <strong>{t('imposter.playModeOnline')}</strong>
+                <span>{t('imposter.playModeOnlineLead')}</span>
+              </button>
+              <button
+                type="button"
+                className={playMode === 'inPerson' ? 'is-picked' : ''}
+                onClick={() => setPlayMode('inPerson')}
+              >
+                <strong>{t('imposter.playModeInPerson')}</strong>
+                <span>{t('imposter.playModeInPersonLead')}</span>
+              </button>
+            </fieldset>
+          )}
           {invited ? (
             <button type="button" className="imposter-primary" onClick={() => void joinGame()} disabled={busy}>
               {t('imposter.joinCta')}
@@ -653,6 +737,7 @@ export default function ImposterGame() {
                   {player.isHost ? ` · ${t('imposter.host')}` : ''}
                   {player.id === me?.id ? ` · ${t('imposter.you')}` : ''}
                   {player.joinedVia === 'qr' ? ` · ${t('imposter.viaQr')}` : ''}
+                  {` · ${t('imposter.points', { count: playerScore(player) })}`}
                 </span>
                 {isHost && !player.isHost && (
                   <button type="button" className="imposter-text-btn" onClick={() => kick(player.id)}>
@@ -664,6 +749,16 @@ export default function ImposterGame() {
           </ul>
           {isHost && (
             <>
+              <label className="imposter-field">
+                {t('imposter.playMode')}
+                <select
+                  value={room.playMode ?? 'inPerson'}
+                  onChange={(e) => updateLobby({ playMode: e.target.value as PlayMode })}
+                >
+                  <option value="online">{t('imposter.playModeOnline')}</option>
+                  <option value="inPerson">{t('imposter.playModeInPerson')}</option>
+                </select>
+              </label>
               <label className="imposter-field">
                 {t('imposter.category')}
                 <select
@@ -765,7 +860,7 @@ export default function ImposterGame() {
               ? t('imposter.yourTurn')
               : t('imposter.waitingTurn', { name: currentCluePlayer?.name || '…' })}
           </p>
-          {currentClueId === me.id && (
+          {currentClueId === me.id && (mode === 'online' ? (
             <div className="imposter-add-local">
               <input
                 value={clue}
@@ -777,12 +872,17 @@ export default function ImposterGame() {
                 {t('imposter.sendClue')}
               </button>
             </div>
-          )}
+          ) : (
+            <button type="button" className="imposter-primary" onClick={() => void markSaid()}>
+              {t('imposter.markSaid')}
+            </button>
+          ))}
           <h3>{t('imposter.cluesList')}</h3>
           <ul className="imposter-clues">
             {room.clues.map((entry) => (
               <li key={entry.playerId}>
-                <strong>{getPlayer(room, entry.playerId)?.name}:</strong> {entry.text}
+                <strong>{getPlayer(room, entry.playerId)?.name}:</strong>{' '}
+                {entry.spoken ? t('imposter.saidClue') : entry.text}
               </li>
             ))}
           </ul>
@@ -790,28 +890,41 @@ export default function ImposterGame() {
         </main>
       )}
 
-      {room.phase === 'discuss' && (
+      {room.phase === 'roundVote' && me && (
         <main className="imposter-card">
-          <h2>{t('imposter.discussTitle')}</h2>
-          <p>{t('imposter.discussLead')}</p>
-          {room.discussEndsAt && <p className="imposter-timer">{remainingDiscuss}s</p>}
+          <h2>{t('imposter.roundVoteTitle')}</h2>
+          <p>{t('imposter.roundVoteLead')}</p>
           <ul className="imposter-clues">
             {room.clues.map((entry) => (
               <li key={entry.playerId}>
-                <strong>{getPlayer(room, entry.playerId)?.name}:</strong> {entry.text}
+                <strong>{getPlayer(room, entry.playerId)?.name}:</strong>{' '}
+                {entry.spoken ? t('imposter.saidClue') : entry.text}
               </li>
             ))}
           </ul>
-          <button type="button" className="imposter-primary" onClick={startVote}>
-            {t('imposter.voteNow')}
-          </button>
+          {!room.roundVotes?.[me.id] ? (
+            <div className="imposter-vote-grid">
+              <button type="button" onClick={() => castRoundVote('again')}>
+                {t('imposter.anotherRound')}
+              </button>
+              <button type="button" onClick={() => castRoundVote('vote')}>
+                {t('imposter.goToVote')}
+              </button>
+            </div>
+          ) : (
+            <p>
+              {room.roundVotes[me.id] === 'vote' ? t('imposter.youChoseVote') : t('imposter.youChoseAgain')}
+            </p>
+          )}
+          <p>{t('imposter.waitingRoundVotes')}</p>
+          {error && <p className="imposter-error">{error}</p>}
         </main>
       )}
 
       {room.phase === 'vote' && me && (
         <main className="imposter-card">
           <h2>{t('imposter.voteTitle')}</h2>
-          <p>{t('imposter.voteLead')}</p>
+          <p>{t('imposter.voteLeadAll')}</p>
           <div className="imposter-vote-grid">
             {room.players
               .filter((player) => player.id !== me.id)
@@ -835,34 +948,58 @@ export default function ImposterGame() {
         </main>
       )}
 
-      {room.phase === 'guess' && (
+      {room.phase === 'wordGuess' && (
         <main className="imposter-card">
-          <h2>{t('imposter.guessTitle')}</h2>
-          <p>{t('imposter.guessLead')}</p>
-          <p>{t('imposter.accused', { name: getPlayer(room, room.accusedId || '')?.name || '' })}</p>
-          {me?.isImposter ? (
-            <>
-              <input
-                value={guess}
-                onChange={(e) => setGuess(e.target.value)}
-                placeholder={t('imposter.guessPlaceholder')}
-              />
-              <button type="button" className="imposter-primary" onClick={() => void submitGuess(false)}>
-                {t('imposter.submitGuess')}
-              </button>
-              <button type="button" className="imposter-text-btn" onClick={() => void submitGuess(true)}>
-                {t('imposter.skipGuess')}
-              </button>
-            </>
-          ) : (
-            <p>{t('imposter.waitingReady')}</p>
+          <h2>{t('imposter.wordGuessTitle')}</h2>
+          <p>
+            {t('imposter.impostersWere', {
+              names: room.players
+                .filter((player) => player.isImposter)
+                .map((player) => player.name)
+                .join(', '),
+            })}
+          </p>
+          <p>{t('imposter.wordGuessLead')}</p>
+          {me && room.votes[me.id] && (
+            <p>
+              {room.players.some((player) => player.id === room.votes[me.id] && player.isImposter)
+                ? t('imposter.guessedRight')
+                : t('imposter.guessedWrong')}
+            </p>
           )}
+          <div className="imposter-vote-grid">
+            {(room.wordOptions ?? []).map((option) => (
+              <button
+                key={option.en}
+                type="button"
+                className={
+                  Object.values(room.wordGuesses ?? {}).includes(option.en) ? 'is-picked' : ''
+                }
+                onClick={() => pickSecretWord(option.en)}
+                disabled={!me?.isImposter || Boolean(room.wordGuesses?.[me.id])}
+              >
+                {displayWord(option, language)}
+              </button>
+            ))}
+          </div>
+          {Object.entries(room.wordGuesses ?? {}).map(([playerId, wordEn]) => {
+            const option = (room.wordOptions ?? []).find((item) => item.en === wordEn)
+            return (
+              <p key={playerId}>
+                {t('imposter.wordGuessPicked', {
+                  name: getPlayer(room, playerId)?.name || '',
+                  word: option ? displayWord(option, language) : wordEn,
+                })}
+              </p>
+            )
+          })}
+          {!me?.isImposter && <p>{t('imposter.waitingImposterGuess')}</p>}
         </main>
       )}
 
       {room.phase === 'result' && (
         <main className="imposter-card">
-          <h2>{room.winner === 'civilians' ? t('imposter.civiliansWin') : t('imposter.impostersWin')}</h2>
+          <h2>{t('imposter.scoresTitle')}</h2>
           <p className="imposter-word">{t('imposter.wordWas', { word: wordLabel })}</p>
           <p>
             {t('imposter.impostersWere', {
@@ -872,14 +1009,32 @@ export default function ImposterGame() {
                 .join(', '),
             })}
           </p>
-          {room.accusedId ? (
-            <p>
-              {t('imposter.accused', { name: getPlayer(room, room.accusedId)?.name || '' })}
-              {!getPlayer(room, room.accusedId)?.isImposter ? ` — ${t('imposter.civilianAccused')}` : ''}
-            </p>
-          ) : (
-            <p>{t('imposter.tie')}</p>
-          )}
+          {Object.entries(room.wordGuesses ?? {}).map(([playerId, wordEn]) => {
+            const option = (room.wordOptions ?? []).find((item) => item.en === wordEn)
+            const correct = guessMatchesWord(wordEn, room.word) || wordEn === room.word.en
+            return (
+              <p key={playerId}>
+                {t('imposter.wordGuessPicked', {
+                  name: getPlayer(room, playerId)?.name || '',
+                  word: option ? displayWord(option, language) : wordEn,
+                })}{' '}
+                {correct ? t('imposter.guessCorrect') : t('imposter.guessWrong')}
+              </p>
+            )
+          })}
+          <ul className="imposter-players">
+            {[...room.players]
+              .sort((a, b) => playerScore(b) - playerScore(a))
+              .map((player) => (
+                <li key={player.id}>
+                  <span>
+                    {player.name}
+                    {player.isImposter ? ` · ${t('imposter.imposters')}` : ''}
+                  </span>
+                  <strong>{t('imposter.points', { count: playerScore(player) })}</strong>
+                </li>
+              ))}
+          </ul>
           {isHost && (
             <>
               <label className="imposter-field">

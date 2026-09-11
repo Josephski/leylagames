@@ -292,6 +292,15 @@ export function pickImposterWord(categoryId: string) {
   return category.words[Math.floor(Math.random() * category.words.length)]
 }
 
+export function pickWordOptions(categoryId: string, secret: ImposterWord, count = 6): ImposterWord[] {
+  const category = getImposterCategory(categoryId) ?? IMPOSTER_CATEGORIES[0]
+  const decoys = category.words
+    .filter((word) => word.en !== secret.en)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, Math.max(0, count - 1))
+  return [...decoys, secret].sort(() => Math.random() - 0.5)
+}
+
 export function labelForWord(word: ImposterWord, language: string) {
   if (language === 'ar') return word.ar
   if (language === 'sv' || language === 'da') return word.sv

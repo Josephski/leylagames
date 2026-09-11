@@ -343,3 +343,46 @@
 html[dir='rtl'] .imposter-rules ol {
   padding-inline-start: 1.2rem;
 }
+
+.imposter-mode {
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 0.75rem;
+  margin: 0.85rem 0 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.imposter-mode legend {
+  font-weight: 800;
+  padding: 0 0.35rem;
+}
+
+.imposter-mode button {
+  text-align: start;
+  min-height: 56px;
+  border-radius: 14px;
+  border: 1px solid #334155;
+  background: #111827;
+  color: white;
+  padding: 0.7rem 0.85rem;
+  display: grid;
+  gap: 0.2rem;
+  touch-action: manipulation;
+}
+
+.imposter-mode button span {
+  font-weight: 500;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+}
+
+.imposter-mode button.is-picked {
+  background: #e8c36a;
+  color: #111827;
+  border-color: #e8c36a;
+}
+
+.imposter-mode button.is-picked span {
+  color: #334155;
+}

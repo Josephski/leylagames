@@ -15,6 +15,7 @@ test('imposter pass-the-phone round follows the rules', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Imposter' })).toBeVisible()
   await page.getByPlaceholder('Name').fill('Leyla')
+  await page.getByRole('button', { name: /In person/i }).click()
   await page.getByRole('button', { name: /Create game and show QR/i }).click()
   await expect(page.getByRole('heading', { name: 'You are hosting' })).toBeVisible()
   await expect(page.getByRole('img', { name: /Scan the QR code/i })).toBeVisible()
@@ -34,12 +35,14 @@ test('imposter pass-the-phone round follows the rules', async ({ page }) => {
   }
 
   await expect(page.getByRole('heading', { name: 'Give a one-word clue' })).toBeVisible()
-  for (const clue of ['fast', 'yellow', 'wild']) {
-    await page.getByPlaceholder('One word').fill(clue)
-    await page.getByRole('button', { name: 'Send' }).click()
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByRole('button', { name: /Done – I said my word/i }).click()
   }
 
-  await expect(page.getByRole('heading', { name: 'Discuss' })).toBeVisible()
-  await page.getByRole('button', { name: 'Start the vote' }).click()
+  await expect(page.getByRole('heading', { name: 'Next step' })).toBeVisible()
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByRole('button', { name: 'Go to the vote' }).click()
+  }
+
   await expect(page.getByRole('heading', { name: 'Vote for the Imposter' })).toBeVisible()
 })
