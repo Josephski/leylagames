@@ -1,27 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import QRCode from 'qrcode'
 
 export function InviteQr({ url, alt }: { url: string; alt: string }) {
-  const [src, setSrc] = useState('')
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    if (!url) return
-    let active = true
-    void QRCode.toDataURL(url, {
-      width: 360,
+    const canvas = canvasRef.current
+    if (!url || !canvas) return
+    void QRCode.toCanvas(canvas, url, {
+      width: 240,
       margin: 1,
+      errorCorrectionLevel: 'M',
       color: { dark: '#0f172a', light: '#ffffff' },
-    }).then((dataUrl) => {
-      if (active) setSrc(dataUrl)
-    })
-    return () => {
-      active = false
-    }
+    }).catch(() => undefined)
   }, [url])
 
-  if (!src) return <div className="imposter-qr imposter-qr-pending" aria-hidden="true" />
+  if (!url) return <div className="imposter-qr imposter-qr-pending" aria-hidden="true" />
 
-  return <img className="imposter-qr" src={src} alt={alt} />
+  return <canvas ref={canvasRef} className="imposter-qr" role="img" aria-label={alt} />
 }

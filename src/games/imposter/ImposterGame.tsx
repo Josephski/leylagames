@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IMPOSTER_CATEGORIES } from '../../data/imposterWords'
 import { useLanguage } from '../../i18n/LanguageProvider'
 import { LanguageSelect } from '../../i18n/LanguageSelect'
@@ -90,6 +90,15 @@ function oneWord(value: string) {
   return value.trim().split(/\s+/)[0]?.slice(0, 24) ?? ''
 }
 
+function settleMobileViewport() {
+  if (typeof window === 'undefined') return
+  const focused = document.activeElement
+  if (focused instanceof HTMLElement) focused.blur()
+  window.scrollTo(0, 0)
+  window.setTimeout(() => window.scrollTo(0, 0), 50)
+  window.setTimeout(() => window.scrollTo(0, 0), 320)
+}
+
 function emptyRoom(code: string, host: ImposterPlayer): ImposterRoom {
   return {
     code,
@@ -130,9 +139,14 @@ export default function ImposterGame() {
   const [localName, setLocalName] = useState('')
   const [now, setNow] = useState(Date.now())
 
+  const creatingRef = useRef(false)
+  const navLockedUntil = useRef(0)
+
   const me = room ? getPlayer(room, activeId) || getPlayer(room, selfId) : undefined
   const hostOnDevice = Boolean(
-    room?.players.some((player) => player.isHost && readLocals(room.code).includes(player.id)),
+    room?.players.some(
+      (player) => player.isHost && (player.id === selfId || readLocals(room.code).includes(player.id)),
+    ),
   )
   const isHost = hostOnDevice
   const joinUrl = room ? imposterJoinUrl(room.code) : ''
@@ -140,7 +154,14 @@ export default function ImposterGame() {
 
   useEffect(() => {
     if (!roomCode) return
-    return subscribeRoom(roomCode, (next) => setRoom(next))
+    let unsubscribe: (() => void) | undefined
+    const timer = window.setTimeout(() => {
+      unsubscribe = subscribeRoom(roomCode, (next) => setRoom(next))
+    }, 150)
+    return () => {
+      window.clearTimeout(timer)
+      unsubscribe?.()
+    }
   }, [roomCode])
 
   useEffect(() => {
@@ -158,8 +179,10 @@ export default function ImposterGame() {
           setActiveId(selfId)
           setRoom(existing)
           const mine = existing.players.find((player) => player.id === selfId)
-          if (mine?.isHost) void startHostPeer(code, existing, saveRoom)
-          else void connectGuestWithRetry(code).catch(() => undefined)
+          if (!isSupabaseConfigured) {
+            if (mine?.isHost) void startHostPeer(code, existing, saveRoom)
+            else void connectGuestWithRetry(code).catch(() => undefined)
+          }
         }
         setRestoring(false)
       })
@@ -217,31 +240,42 @@ export default function ImposterGame() {
   }
 
   const createGame = async () => {
+    if (creatingRef.current) return
     const trimmed = name.trim()
     if (!trimmed) return setError(t('imposter.nameNeeded'))
+    creatingRef.current = true
+    navLockedUntil.current = Date.now() + 700
     setBusy(true)
     setError('')
+    persistName(trimmed)
+    const host: ImposterPlayer = {
+      id: selfId,
+      name: trimmed,
+      isHost: true,
+      isImposter: false,
+      ready: false,
+      joinedVia: 'local',
+    }
+    const created = emptyRoom(newRoomCode(), host)
+    rememberLocal(created.code, selfId)
+    syncRoomUrl(created.code)
+    setActiveId(selfId)
+    setRoom(created)
+    setBusy(false)
+    settleMobileViewport()
     try {
-      persistName(trimmed)
-      const host: ImposterPlayer = {
-        id: selfId,
-        name: trimmed,
-        isHost: true,
-        isImposter: false,
-        ready: false,
-        joinedVia: 'local',
-      }
-      const created = emptyRoom(newRoomCode(), host)
       await saveRoom(created)
-      void startHostPeer(created.code, created, saveRoom)
-      rememberLocal(created.code, selfId)
-      syncRoomUrl(created.code)
-      setActiveId(selfId)
-      setRoom(created)
+      if (!isSupabaseConfigured) {
+        window.setTimeout(() => {
+          void startHostPeer(created.code, created, saveRoom)
+        }, 450)
+      }
     } catch (err) {
       handleError(err, t('imposter.shareFailed'))
+      setRoom(null)
+      clearRoomUrl()
     } finally {
-      setBusy(false)
+      creatingRef.current = false
     }
   }
 
@@ -258,7 +292,7 @@ export default function ImposterGame() {
       if (!existing) existing = await connectGuestWithRetry(trimmedCode)
       const already = existing.players.find((player) => player.id === selfId)
       if (already) {
-        if (!already.isHost) void connectGuestWithRetry(trimmedCode).catch(() => undefined)
+        if (!already.isHost && !isSupabaseConfigured) void connectGuestWithRetry(trimmedCode).catch(() => undefined)
         rememberLocal(trimmedCode, selfId)
         syncRoomUrl(trimmedCode)
         setActiveId(selfId)
@@ -463,6 +497,7 @@ export default function ImposterGame() {
   }
 
   const leave = () => {
+    if (Date.now() < navLockedUntil.current) return
     if (room && me && !me.isHost) {
       void patchRoom(room.code, (current) => ({
         ...current,

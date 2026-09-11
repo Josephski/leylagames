@@ -1,6 +1,8 @@
 .imposter-page {
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-anchor: none;
   padding: max(0.75rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
     max(1.25rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   background:
@@ -90,6 +92,7 @@
   font-size: 1rem;
   cursor: pointer;
   margin-top: 0.55rem;
+  touch-action: manipulation;
 }
 
 .imposter-primary {
@@ -117,6 +120,7 @@
   min-height: 44px;
   cursor: pointer;
   padding: 0.35rem 0.5rem;
+  touch-action: manipulation;
 }
 
 .imposter-or {

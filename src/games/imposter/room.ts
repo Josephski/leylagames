@@ -140,9 +140,11 @@ export function subscribeRoom(code: string, onRoom: (room: ImposterRoom) => void
 
   const poll = window.setInterval(() => {
     void fetchRoom(code).then(notify)
-  }, 1000)
+  }, 2000)
 
-  void fetchRoom(code).then(notify)
+  const kickoff = window.setTimeout(() => {
+    void fetchRoom(code).then(notify)
+  }, 0)
 
   return () => {
     active = false
@@ -151,6 +153,7 @@ export function subscribeRoom(code: string, onRoom: (room: ImposterRoom) => void
     unwatchPeer()
     broadcast?.close()
     window.clearInterval(poll)
+    window.clearTimeout(kickoff)
     if (realtime && supabase) void supabase.removeChannel(realtime)
   }
 }
