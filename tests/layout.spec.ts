@@ -38,3 +38,18 @@ test('game layout stays within viewport height', async ({ page }) => {
   expect(fitInfo).not.toBeNull()
   expect(fitInfo!.ok, `Spelytan sticker utanför viewporten: bottom=${fitInfo!.rect.bottom}, viewport=${fitInfo!.innerHeight}`).toBeTruthy()
 })
+
+test('mobile layout shows flag, letters and back control', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/games/flag-quiz?country=SE&dev=1')
+
+  await dismissTutorialIfVisible(page)
+  await page.waitForSelector('.flag-game', { timeout: 15000 })
+
+  await expect(page.locator('.letter-box').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /tillbaka/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /kontrollera svar/i })).toBeVisible()
+
+  const noHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)
+  expect(noHorizontalOverflow).toBeTruthy()
+})

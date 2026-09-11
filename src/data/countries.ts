@@ -1,7 +1,7 @@
 import type { Language } from '../i18n/translations'
 
 interface CountryRecord {
-  names: Record<Language, string>
+  names: { sv: string; da: string }
   flag: string
   code: string
 }
@@ -10,6 +10,11 @@ export interface Country {
   name: string
   flag: string
   code: string
+}
+
+export interface LetterTile {
+  id: string
+  char: string
 }
 
 const countries: CountryRecord[] = [
@@ -62,14 +67,26 @@ const countries: CountryRecord[] = [
   { names: { sv: 'Tanzania', da: 'Tanzania' }, flag: '🇹🇿', code: 'TZ' },
 ]
 
-const toCountry = (record: CountryRecord, language: Language): Country => ({
-  name: record.names[language],
-  flag: record.flag,
-  code: record.code,
-})
+const toCountry = (record: CountryRecord, language: Language): Country => {
+  if (language === 'en' || language === 'ar') {
+    try {
+      const label = new Intl.DisplayNames([language], { type: 'region' }).of(record.code)
+      if (label) return { name: label, flag: record.flag, code: record.code }
+    } catch {
+      // Fall through to Swedish.
+    }
+  }
+  return {
+    name: record.names[language === 'da' ? 'da' : 'sv'],
+    flag: record.flag,
+    code: record.code,
+  }
+}
 
-export function getRandomCountry(language: Language): Country {
-  return toCountry(countries[Math.floor(Math.random() * countries.length)], language)
+export function getRandomCountry(language: Language, exceptCode?: string | null): Country {
+  const pool = exceptCode ? countries.filter((c) => c.code !== exceptCode) : countries
+  const list = pool.length > 0 ? pool : countries
+  return toCountry(list[Math.floor(Math.random() * list.length)], language)
 }
 
 export function getCountryByCode(code: string, language: Language): Country | undefined {
@@ -77,11 +94,44 @@ export function getCountryByCode(code: string, language: Language): Country | un
   return match ? toCountry(match, language) : undefined
 }
 
-export function shuffleLetters(text: string): string[] {
-  const letters = text.toUpperCase().split('')
+export function getAllCountries(language: Language): Country[] {
+  return countries.map((record) => toCountry(record, language))
+}
+
+export function shuffleCopy<T>(items: T[]): T[] {
+  const next = [...items]
+  for (let i = next.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[next[i], next[j]] = [next[j], next[i]]
+  }
+  return next
+}
+
+export function pickCountries(language: Language, count: number, exceptCode?: string | null): Country[] {
+  const pool = shuffleCopy(exceptCode ? countries.filter((c) => c.code !== exceptCode) : countries)
+  return pool.slice(0, Math.max(0, count)).map((record) => toCountry(record, language))
+}
+
+export function countryChoices(language: Language, correct: Country, optionCount = 4): Country[] {
+  const others = pickCountries(language, optionCount - 1, correct.code)
+  return shuffleCopy([correct, ...others])
+}
+
+export function shuffleLetters(text: string): LetterTile[] {
+  const letters: LetterTile[] = text.toUpperCase().split('').map((char, index) => ({
+    id: `${index}-${char}`,
+    char,
+  }))
   for (let i = letters.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [letters[i], letters[j]] = [letters[j], letters[i]]
   }
   return letters
+}
+
+export function tilesFromName(name: string): LetterTile[] {
+  return name.toUpperCase().split('').map((char, index) => ({
+    id: `answer-${index}-${char}`,
+    char,
+  }))
 }

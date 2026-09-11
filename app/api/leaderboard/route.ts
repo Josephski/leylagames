@@ -24,7 +24,7 @@ declare global {
   var __leaderboardRate: Map<string, RateEntry> | undefined
 }
 
-type CacheEntry = { expires: number; data: any }
+type CacheEntry = { expires: number; data: unknown }
 const cache = globalThis.__leaderboardCache || new Map<string, CacheEntry>()
 globalThis.__leaderboardCache = cache
 
@@ -85,7 +85,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const gameId = searchParams.get('gameId')
-  const limit = Number(searchParams.get('limit') || '10')
+  const rawLimit = Number(searchParams.get('limit') || '10')
+  const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(50, rawLimit)) : 10
 
   if (!gameId) {
     return NextResponse.json({ error: 'gameId saknas' }, { status: 400 })
@@ -105,7 +106,7 @@ export async function GET(req: NextRequest) {
       .select('user_name,score,created_at')
       .eq('game_id', gameId)
       .order('score', { ascending: false })
-      .limit(isNaN(limit) ? 10 : limit)
+      .limit(limit)
 
     if (error) {
       throw error
@@ -114,8 +115,9 @@ export async function GET(req: NextRequest) {
     cache.set(cacheKey, { data, expires: now + CACHE_TTL_MS })
 
     return NextResponse.json({ data })
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Kunde inte hämta topplista' }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Kunde inte hämta topplista'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -129,7 +131,7 @@ export async function POST(req: NextRequest) {
     const provided =
       req.headers.get('x-api-key') ||
       new URL(req.url).searchParams.get('key') ||
-      (await req.clone().json().catch(() => ({})) as any)?.key
+      ((await req.clone().json().catch(() => ({}))) as { key?: string })?.key
     if (provided !== API_KEY) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -154,10 +156,13 @@ export async function POST(req: NextRequest) {
       throw error
     }
 
-    cache.delete(`${gameId}:10`)
+    cache.forEach((_value, key) => {
+      if (key.startsWith(`${gameId}:`)) cache.delete(key)
+    })
 
     return NextResponse.json({ ok: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Kunde inte spara poäng' }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Kunde inte spara poäng'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

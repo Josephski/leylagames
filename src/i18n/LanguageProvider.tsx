@@ -23,6 +23,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return
     window.localStorage.setItem('leyla-language', language)
     document.documentElement.lang = language
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
   }, [language])
 
   const t = useCallback(

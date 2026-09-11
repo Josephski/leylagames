@@ -16,23 +16,20 @@
     "start:next": "next start --port 4310"
   },
   "dependencies": {
-    "@dnd-kit/core": "^6.1.0",
-    "@dnd-kit/modifiers": "^7.0.0",
-    "@dnd-kit/sortable": "^8.0.0",
-    "@hello-pangea/dnd": "^18.0.1",
     "@sentry/react": "^8.32.0",
     "@supabase/supabase-js": "^2.32.0",
     "next": "^14.2.5",
+    "peerjs": "^1.5.5",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.28.0",
-    "@hello-pangea/dnd": "^16.5.0",
-    "zustand": "^4.4.0"
+    "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^14.2.5",
     "@playwright/test": "^1.56.1",
     "@types/node": "^20.14.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

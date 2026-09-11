@@ -1,103 +1,53 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { getRandomCountry, shuffleLetters, type Country, getCountryByCode } from '../data/countries'
+'use client'
+
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import {
+  getCountryByCode,
+  getRandomCountry,
+  shuffleLetters,
+  tilesFromName,
+  type Country,
+  type LetterTile,
+} from '../data/countries'
 import Leaderboard from './Leaderboard'
 import { useCurrentGame } from '../platform/GameContext'
 import { useLanguage } from '../i18n/LanguageProvider'
+import { readLocal, readLocalFlag, readLocalNumber, writeLocal } from '../lib/storage'
+import { HelpOverlay } from './flag-game/HelpOverlay'
+import { SettingsOverlay } from './flag-game/SettingsOverlay'
+import { BASE_POINTS, STREAK_BONUS, difficultySettings, isDifficulty, type Difficulty } from './flag-game/constants'
+import { IconEye, IconEyeOff, IconNext, IconSkip, IconSound } from './flag-game/icons'
+import { useGameTimer } from './flag-game/useGameTimer'
+import { useSpeech } from './flag-game/useSpeech'
 import './FlagGame.css'
 
-const IconSound = () => (
-  <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M4.5 9.5v5h3L12 18v-11l-4.5 3.5h-3Zm12.75 2.5a3.25 3.25 0 0 0-2.45-3.15v6.3a3.25 3.25 0 0 0 2.45-3.15Zm-2.45-7.2v1.72a5.75 5.75 0 0 1 0 10.96v1.72a7.25 7.25 0 0 0 0-14.4Z"
-      fill="currentColor"
-    />
-  </svg>
-)
+type MessageType = 'success' | 'error' | 'info'
 
-const IconEye = () => (
-  <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Zm9 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-      fill="currentColor"
-    />
-    <circle cx="12" cy="12" r="1.3" fill="#0f172a" />
-  </svg>
-)
-
-const IconEyeOff = () => (
-  <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="m4 4 16 16M6 6.5C3.9 8.5 3 12 3 12s3.5 6 9 6c1.15 0 2.22-.2 3.2-.55M11 5.06c.32-.04.65-.06 1-.06 5.5 0 9 6 9 6s-.48.83-1.38 1.81"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-    <circle cx="12" cy="12" r="2" fill="currentColor" />
-  </svg>
-)
-
-const IconSkip = () => (
-  <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="m6 6 7 6-7 6V6Zm8.5 0v12"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  </svg>
-)
-
-const IconNext = () => (
-  <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M6 12h12m0 0-4-4m4 4-4 4"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  </svg>
-)
-
-const BASE_POINTS = 10
-const STREAK_BONUS = 2
-
-type Difficulty = 'easy' | 'medium' | 'hard'
-const difficultySettings: Record<Difficulty, { time: number; multiplier: number }> = {
-  easy: { time: 60, multiplier: 1 },
-  medium: { time: 45, multiplier: 1.2 },
-  hard: { time: 30, multiplier: 1.5 },
+const flagPath = (code: string) => {
+  const base = import.meta.env.BASE_URL || '/'
+  return `${base}flags/${code.toLowerCase()}.png`
 }
 
 export default function FlagGame() {
-  // Context is provided via GameProvider; we don't consume game data here.
-  useCurrentGame()
-  const navigate = useNavigate()
-  const { language, setLanguage, t } = useLanguage()
+  const { game, onExit } = useCurrentGame()
+  const { language, t } = useLanguage()
+  const { voices, selectedVoice, setSelectedVoice, speak, refreshVoices } = useSpeech(language)
+
   const [country, setCountry] = useState<Country | null>(null)
-  const [selected, setSelected] = useState<string[]>([])
+  const [selected, setSelected] = useState<LetterTile[]>([])
   const [completed, setCompleted] = useState(false)
   const [score, setScore] = useState(0)
   const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info')
+  const [messageType, setMessageType] = useState<MessageType>('info')
   const [showAnswer, setShowAnswer] = useState(false)
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
-  const [streak, setStreak] = useState(0)
-  const [bestStreak, setBestStreak] = useState(() => {
-    if (typeof window === 'undefined') return 0
-    const stored = window.localStorage.getItem('leyla-best-streak')
-    return stored ? Number(stored) || 0 : 0
+  const [difficulty, setDifficulty] = useState<Difficulty>(() => {
+    const saved = readLocal('leyla-difficulty', 'medium')
+    return isDifficulty(saved) ? saved : 'medium'
   })
+  const [streak, setStreak] = useState(0)
+  const [bestStreak, setBestStreak] = useState(() => readLocalNumber('leyla-best-streak', 0))
   const [roundsPlayed, setRoundsPlayed] = useState(0)
   const [correctRounds, setCorrectRounds] = useState(0)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -106,192 +56,136 @@ export default function FlagGame() {
   const [roundScore, setRoundScore] = useState(0)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [showRoundSummary, setShowRoundSummary] = useState(false)
-  // Checklistan används inte längre (tutorial avstängd)
-  const [audioHelp, setAudioHelp] = useState(() => {
-    if (typeof window === 'undefined') return true
-    const saved = window.localStorage.getItem('leyla-audio-help')
-    return saved ? saved === '1' : true
-  })
-  const [devMode] = useState(() => {
-    if (typeof window === 'undefined') return false
-    const params = new URLSearchParams(window.location.search)
-    return params.get('dev') === '1'
-  })
-  const [forcedCountryCode] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('country')
-    return code ? code.toUpperCase() : null
-  })
-  const [timeLimitEnabled, setTimeLimitEnabled] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true
-    const saved = window.localStorage.getItem('leyla-time-enabled')
-    return saved ? saved === '1' : true
-  })
-  const [customTime, setCustomTime] = useState<number>(() => {
-    if (typeof window === 'undefined') return difficultySettings['medium'].time
-    const saved = window.localStorage.getItem('leyla-time-seconds')
-    const asNumber = saved ? Number(saved) : NaN
-    return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : difficultySettings['medium'].time
-  })
-  const [timeLeft, setTimeLeft] = useState<number>(customTime)
+  const [audioHelp, setAudioHelp] = useState(() => readLocalFlag('leyla-audio-help', true))
+  const [timeLimitEnabled, setTimeLimitEnabled] = useState(() => readLocalFlag('leyla-time-enabled', true))
+  const [customTime, setCustomTime] = useState(() =>
+    readLocalNumber('leyla-time-seconds', difficultySettings.medium.time),
+  )
+  const [devMode, setDevMode] = useState(false)
+  const [roundId, setRoundId] = useState(0)
 
-  const timerRef = useRef<number | null>(null)
-  const voiceLanguagePrefix = language === 'da' ? 'da' : 'sv'
-  const defaultVoiceLang = language === 'da' ? 'da-DK' : 'sv-SE'
+  const countryRef = useRef<Country | null>(null)
+  const lastCountryCodeRef = useRef<string | null>(null)
+  const completedRef = useRef(false)
+  const messageTimeoutRef = useRef<number | null>(null)
+  const dragIndexRef = useRef<number | null>(null)
+  countryRef.current = country
+  completedRef.current = completed
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      window.clearInterval(timerRef.current)
-      timerRef.current = null
+  const flashMessage = useCallback((text: string, type: MessageType, ms?: number) => {
+    setMessage(text)
+    setMessageType(type)
+    if (messageTimeoutRef.current !== null) window.clearTimeout(messageTimeoutRef.current)
+    if (ms) {
+      messageTimeoutRef.current = window.setTimeout(() => setMessage(''), ms)
     }
   }, [])
 
   const handleTimeUp = useCallback(() => {
-    if (completed || !country || !timeLimitEnabled) return
+    const current = countryRef.current
+    if (completedRef.current || !current) return
+    completedRef.current = true
     setCompleted(true)
-    setMessage(t('flagGame.timeUp', { country: country.name }))
-    setMessageType('error')
+    flashMessage(t('flagGame.timeUp', { country: current.name }), 'error')
     setShowAnswer(true)
     setStreak(0)
     setRoundsPlayed((r) => r + 1)
-    clearTimer()
-  }, [clearTimer, completed, country, t, timeLimitEnabled])
+  }, [flashMessage, t])
 
-  const startTimer = useCallback(() => {
-    if (!timeLimitEnabled) {
-      clearTimer()
-      setTimeLeft(customTime)
-      return
-    }
-    clearTimer()
-    setTimeLeft(customTime)
-    timerRef.current = window.setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearTimer()
-          handleTimeUp()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }, [clearTimer, customTime, handleTimeUp, timeLimitEnabled])
-
-  const pickCountry = useCallback(() => {
-    if (forcedCountryCode) {
-      const specific = getCountryByCode(forcedCountryCode, language)
-      if (specific) return specific
-    }
-    return getRandomCountry(language)
-  }, [forcedCountryCode, language])
+  const { timeLeft, setTimeLeft } = useGameTimer({
+    enabled: timeLimitEnabled,
+    seconds: customTime,
+    running: Boolean(country) && !completed,
+    roundKey: roundId,
+    onExpire: handleTimeUp,
+  })
 
   const loadNewCountry = useCallback(() => {
-    clearTimer()
-    const newCountry = pickCountry()
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const forced = params.get('country')?.toUpperCase() ?? null
+    const newCountry =
+      (forced ? getCountryByCode(forced, language) : undefined) ??
+      getRandomCountry(language, lastCountryCodeRef.current)
+
+    lastCountryCodeRef.current = newCountry.code
+    countryRef.current = newCountry
+    completedRef.current = false
     setCountry(newCountry)
     setSelected(shuffleLetters(newCountry.name))
     setCompleted(false)
     setMessage('')
     setMessageType('info')
     setShowAnswer(false)
-    setTimeLeft(customTime)
     setFlagError(false)
     setShowRoundSummary(false)
-    if (newCountry) {
-      const flagPath = `${import.meta.env.BASE_URL}flags/${newCountry.code.toLowerCase()}.png`
-      setFlagSrc(flagPath)
-    }
+    setFlagSrc(flagPath(newCountry.code))
     setRoundScore(0)
-  }, [clearTimer, customTime, pickCountry])
+    setRoundId((id) => id + 1)
+  }, [language])
+
+  useEffect(() => {
+    setDevMode(new URLSearchParams(window.location.search).get('dev') === '1')
+  }, [])
 
   useEffect(() => {
     loadNewCountry()
   }, [loadNewCountry])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem('leyla-best-streak', String(bestStreak))
+    writeLocal('leyla-best-streak', String(bestStreak))
   }, [bestStreak])
 
-  // Tutorial disabled on start; can be opened manually via Guide button if needed.
-
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const savedDifficulty = window.localStorage.getItem('leyla-difficulty') as Difficulty | null
-    if (savedDifficulty && difficultySettings[savedDifficulty]) {
-      setDifficulty(savedDifficulty)
-      setTimeLeft(difficultySettings[savedDifficulty].time)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem('leyla-difficulty', difficulty)
+    writeLocal('leyla-difficulty', difficulty)
   }, [difficulty])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem('leyla-audio-help', audioHelp ? '1' : '0')
+    writeLocal('leyla-audio-help', audioHelp ? '1' : '0')
   }, [audioHelp])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem('leyla-time-enabled', timeLimitEnabled ? '1' : '0')
+    writeLocal('leyla-time-enabled', timeLimitEnabled ? '1' : '0')
   }, [timeLimitEnabled])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem('leyla-time-seconds', String(customTime))
+    writeLocal('leyla-time-seconds', String(customTime))
   }, [customTime])
 
-  const playCountryName = useCallback(() => {
-    if (!country || !audioHelp) return
-    try {
-      const utterance = new SpeechSynthesisUtterance(country.name)
-      const voice = selectedVoice
-        ? voices.find((v) => v.name === selectedVoice)
-        : voices.find((v) => v.lang && v.lang.toLowerCase().startsWith(voiceLanguagePrefix))
-      if (voice) utterance.voice = voice
-      utterance.lang = voice?.lang || defaultVoiceLang
-      utterance.rate = 0.95
-      utterance.pitch = 1.0
-      utterance.volume = 1.0
-      speechSynthesis.cancel()
-      speechSynthesis.speak(utterance)
-    } catch (err) {
-      console.error(err)
-    }
-  }, [audioHelp, country, defaultVoiceLang, selectedVoice, voiceLanguagePrefix, voices])
-
-  useEffect(() => {
-    if (!country || completed) return
-    if (!timeLimitEnabled) {
-      clearTimer()
-      setTimeLeft(customTime)
-      return
-    }
-    startTimer()
-    return () => clearTimer()
-  }, [clearTimer, country, completed, customTime, startTimer, timeLimitEnabled])
-
   useEffect(() => {
     if (!country || !audioHelp) return
-    playCountryName()
-  }, [audioHelp, country, playCountryName])
+    speak(country.name)
+  }, [audioHelp, country, speak])
 
-  const handleCheckAnswer = (override?: string[]) => {
+  useEffect(() => {
+    if (dragIndex === null) return
+    const onUp = () => {
+      dragIndexRef.current = null
+      setDragIndex(null)
+    }
+    window.addEventListener('pointerup', onUp)
+    return () => window.removeEventListener('pointerup', onUp)
+  }, [dragIndex])
+
+  useEffect(() => {
+    return () => {
+      if (messageTimeoutRef.current !== null) window.clearTimeout(messageTimeoutRef.current)
+    }
+  }, [])
+
+  const handleCheckAnswer = (override?: LetterTile[]) => {
     if (!country) return
 
-    const attempt = override ?? selected
-    if (attempt.join('') === country.name.toUpperCase()) {
+    const attempt = (override ?? selected).map((tile) => tile.char).join('')
+    if (attempt === country.name.toUpperCase()) {
       setCompleted(true)
+      completedRef.current = true
       const timeBonus = timeLimitEnabled ? Math.max(0, timeLeft - 5) : 0
       const streakBonus = Math.max(0, streak) * STREAK_BONUS
       const multiplier = difficultySettings[difficulty].multiplier
       const total = Math.round((BASE_POINTS + timeBonus + streakBonus) * multiplier)
       setRoundScore(total)
-      setMessage(
+      flashMessage(
         t('flagGame.correct', {
           total,
           base: BASE_POINTS,
@@ -299,8 +193,8 @@ export default function FlagGame() {
           streakBonus,
           multiplier,
         }),
+        'success',
       )
-      setMessageType('success')
       setShowRoundSummary(true)
       setScore((s) => s + total)
       setRoundsPlayed((r) => r + 1)
@@ -310,11 +204,8 @@ export default function FlagGame() {
         setBestStreak((prev) => Math.max(prev, next))
         return next
       })
-      clearTimer()
     } else {
-      setMessage(t('flagGame.incorrect'))
-      setMessageType('error')
-      setTimeout(() => setMessage(''), 1500)
+      flashMessage(t('flagGame.incorrect'), 'error', 1500)
     }
   }
 
@@ -326,11 +217,50 @@ export default function FlagGame() {
     loadNewCountry()
   }
 
-  const toggleShowAnswer = () => {
-    setShowAnswer(!showAnswer)
+  const moveLetter = (from: number, to: number) => {
+    if (from === to || to < 0) return
+    setSelected((current) => {
+      if (to >= current.length) return current
+      const next = [...current]
+      ;[next[from], next[to]] = [next[to], next[from]]
+      return next
+    })
+    setDragIndex(to)
+    dragIndexRef.current = to
   }
 
-  const handleLetterKeyDown = (index: number, e: React.KeyboardEvent<HTMLDivElement>) => {
+  const letterIndexFromPoint = (clientX: number, clientY: number) => {
+    const el = document.elementFromPoint(clientX, clientY)
+    const box = el?.closest('[data-letter-index]') as HTMLElement | null
+    if (!box) return null
+    const index = Number(box.dataset.letterIndex)
+    return Number.isInteger(index) ? index : null
+  }
+
+  const handleLetterPointerDown = (index: number, e: PointerEvent<HTMLDivElement>) => {
+    if (completed) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragIndexRef.current = index
+    setDragIndex(index)
+  }
+
+  const handleLetterPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const from = dragIndexRef.current
+    if (completed || from === null) return
+    const over = letterIndexFromPoint(e.clientX, e.clientY)
+    if (over === null || over === from) return
+    moveLetter(from, over)
+  }
+
+  const handleLetterPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    dragIndexRef.current = null
+    setDragIndex(null)
+  }
+
+  const handleLetterKeyDown = (index: number, e: KeyboardEvent<HTMLDivElement>) => {
     if (completed) return
     if (e.key === 'ArrowRight') {
       e.preventDefault()
@@ -344,62 +274,12 @@ export default function FlagGame() {
     }
   }
 
-  const moveLetter = (from: number, to: number) => {
-    if (from === to || to < 0 || !country || to >= selected.length) return
-    const newSelected = [...selected]
-    ;[newSelected[from], newSelected[to]] = [newSelected[to], newSelected[from]]
-    setSelected(newSelected)
-    setDragIndex(to)
-  }
-
-  useEffect(() => {
-    const load = () => {
-      const available = speechSynthesis.getVoices() || []
-      setVoices(available)
-      const preferred = available.find((v) => v.lang && v.lang.toLowerCase().startsWith(voiceLanguagePrefix))
-      if (preferred) setSelectedVoice(preferred.name)
-    }
-
-    load()
-    speechSynthesis.onvoiceschanged = () => load()
-    return () => {
-      speechSynthesis.onvoiceschanged = null
-    }
-  }, [voiceLanguagePrefix])
-
-  const refreshVoices = () => {
-    const available = speechSynthesis.getVoices() || []
-    setVoices(available)
-    const preferred = available.find((v) => v.lang && v.lang.toLowerCase().startsWith(voiceLanguagePrefix))
-    if (preferred) setSelectedVoice(preferred.name)
-    setMessage(t('flagGame.voiceUpdated'))
-    setMessageType('info')
-    setTimeout(() => setMessage(''), 1500)
-  }
-
   if (!country) {
     return <div className="flag-game">{t('flagGame.loading')}</div>
   }
 
   const accuracy = roundsPlayed > 0 ? Math.round((correctRounds / roundsPlayed) * 100) : 100
-  const timePercent = timeLimitEnabled
-    ? Math.max(0, Math.min(100, (timeLeft / customTime) * 100))
-    : 100
-
-  const handlePointerDown = (index: number) => {
-    if (completed) return
-    setDragIndex(index)
-  }
-
-  const handlePointerEnter = (index: number) => {
-    if (completed) return
-    if (dragIndex === null || dragIndex === index) return
-    moveLetter(dragIndex, index)
-  }
-
-  const handlePointerUp = () => {
-    setDragIndex(null)
-  }
+  const timePercent = timeLimitEnabled ? Math.max(0, Math.min(100, (timeLeft / customTime) * 100)) : 100
 
   return (
     <div className="flag-game">
@@ -407,12 +287,12 @@ export default function FlagGame() {
         <div className="content-row">
           <div className="game-container">
             <div className="flag-display">
-            {!flagError && flagSrc ? (
-              <img
-                src={flagSrc}
-                alt={t('flagGame.flagAlt', { country: country.name })}
-                className="flag-image"
-                onError={() => {
+              {!flagError && flagSrc ? (
+                <img
+                  src={flagSrc}
+                  alt={t('flagGame.flagAlt', { country: country.name })}
+                  className="flag-image"
+                  onError={() => {
                     if (flagSrc && flagSrc.includes('flags/')) {
                       setFlagSrc(`https://flagcdn.com/h120/${country.code.toLowerCase()}.png`)
                     } else {
@@ -420,12 +300,14 @@ export default function FlagGame() {
                     }
                   }}
                 />
-            ) : (
-              <div className="flag-fallback" aria-label={t('flagGame.flagAria', { country: country.name })}>
-                <span className="flag-emoji" aria-hidden="true">{country.flag}</span>
-              </div>
-            )}
-        </div>
+              ) : (
+                <div className="flag-fallback" aria-label={t('flagGame.flagAria', { country: country.name })}>
+                  <span className="flag-emoji" aria-hidden="true">
+                    {country.flag}
+                  </span>
+                </div>
+              )}
+            </div>
 
             <div className="progress-bar">
               <div className="progress-track">
@@ -434,137 +316,62 @@ export default function FlagGame() {
             </div>
 
             {showSettings && (
-              <div className="settings-overlay" onClick={() => setShowSettings(false)}>
-                <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-                  <h3>{t('flagGame.settings.title')}</h3>
-                  <label style={{ display: 'block', margin: '0.5rem 0' }}>{t('flagGame.settings.language')}</label>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value === 'da' ? 'da' : 'sv')}
-                    className="voice-select"
-                  >
-                    <option value="sv">{t('language.sv')}</option>
-                    <option value="da">{t('language.da')}</option>
-                  </select>
-                  <label style={{ display: 'block', margin: '0.5rem 0' }}>{t('flagGame.settings.difficulty')}</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                    {(['easy','medium','hard'] as Difficulty[]).map((level) => (
-                      <button
-                        key={level}
-                        className={`btn ${difficulty === level ? 'btn-selected' : 'btn-ghost'}`}
-                        onClick={() => {
-                          setDifficulty(level)
-                          const newTime = difficultySettings[level].time
-                          setCustomTime(newTime)
-                          setTimeLeft(newTime)
-                          setMessage(t('flagGame.difficultyNotice', { label: t(`flagGame.difficulty.${level}`) }))
-                          setMessageType('info')
-                          setTimeout(() => setMessage(''), 1200)
-                        }}
-                        aria-pressed={difficulty === level}
-                      >
-                        {t(`flagGame.difficulty.${level}`)}
-                      </button>
-                    ))}
-                  </div>
-                  <label style={{ display: 'block', margin: '0.5rem 0' }}>{t('flagGame.settings.timeLimit')}</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                    <button
-                      className={`btn ${timeLimitEnabled ? 'btn-selected' : 'btn-ghost'}`}
-                      onClick={() => {
-                        setTimeLimitEnabled(true)
-                        setTimeLeft(customTime)
-                        startTimer()
-                      }}
-                      aria-pressed={timeLimitEnabled}
-                    >
-                      {t('flagGame.settings.on')}
-                    </button>
-                    <button
-                      className={`btn ${!timeLimitEnabled ? 'btn-selected' : 'btn-ghost'}`}
-                      onClick={() => {
-                        setTimeLimitEnabled(false)
-                        clearTimer()
-                        setTimeLeft(customTime)
-                      }}
-                      aria-pressed={!timeLimitEnabled}
-                    >
-                      {t('flagGame.settings.off')}
-                    </button>
-                    <input
-                      type="number"
-                      min={10}
-                      max={180}
-                      value={customTime}
-                      onChange={(e) => {
-                        const next = Math.max(10, Math.min(180, Number(e.target.value) || 0))
-                        setCustomTime(next)
-                        setTimeLeft(next)
-                        if (timeLimitEnabled) startTimer()
-                      }}
-                      className="time-input"
-                      aria-label={t('flagGame.settings.timeInputAria')}
-                    />
-                    <span style={{ fontSize: '0.95rem' }}>{t('flagGame.settings.seconds')}</span>
-                  </div>
-                  <label style={{ display: 'block', margin: '0.5rem 0' }}>{t('flagGame.settings.voice')}</label>
-                  <select
-                    value={selectedVoice ?? ''}
-                    onChange={(e) => setSelectedVoice(e.target.value || null)}
-                    className="voice-select"
-                  >
-                    <option value="">{t('flagGame.settings.autoVoice')}</option>
-                    {voices.map((v) => (
-                      <option key={v.name} value={v.name}>{v.name} – {v.lang}</option>
-                    ))}
-                  </select>
-
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                    <button className="btn" onClick={refreshVoices}>{t('flagGame.settings.updateVoices')}</button>
-                    <button className="btn" onClick={() => setShowSettings(false)}>{t('flagGame.settings.close')}</button>
-                  </div>
-                </div>
-              </div>
+              <SettingsOverlay
+                difficulty={difficulty}
+                timeLimitEnabled={timeLimitEnabled}
+                customTime={customTime}
+                selectedVoice={selectedVoice}
+                voices={voices}
+                onClose={() => setShowSettings(false)}
+                onDifficulty={(level) => {
+                  setDifficulty(level)
+                  const newTime = difficultySettings[level].time
+                  setCustomTime(newTime)
+                  setTimeLeft(newTime)
+                  flashMessage(
+                    t('flagGame.difficultyNotice', { label: t(`flagGame.difficulty.${level}`) }),
+                    'info',
+                    1200,
+                  )
+                }}
+                onTimeLimitEnabled={setTimeLimitEnabled}
+                onCustomTime={(next) => {
+                  setCustomTime(next)
+                  setTimeLeft(next)
+                }}
+                onVoice={setSelectedVoice}
+                onRefreshVoices={() => {
+                  refreshVoices()
+                  flashMessage(t('flagGame.voiceUpdated'), 'info', 1500)
+                }}
+              />
             )}
 
-            {showHelp && (
-              <div className="settings-overlay" onClick={() => setShowHelp(false)}>
-                <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-                  <h3>{t('flagGame.help.title')}</h3>
-                  <ul style={{ paddingLeft: '1.2rem', lineHeight: 1.5 }}>
-                    {t('flagGame.help.items.0') && <li>{t('flagGame.help.items.0')}</li>}
-                    {t('flagGame.help.items.1') && <li>{t('flagGame.help.items.1')}</li>}
-                    {t('flagGame.help.items.2') && <li>{t('flagGame.help.items.2')}</li>}
-                    {t('flagGame.help.items.3') && <li>{t('flagGame.help.items.3')}</li>}
-                  </ul>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                    <button className="btn" onClick={() => setShowHelp(false)}>{t('flagGame.help.close')}</button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
 
             <div className="game-board">
-            <div className="answer-card">
-              <div className="card-label">{t('flagGame.arrangeLetters')}</div>
-              <div className="letters-container">
-                {selected.map((letter, index) => (
-                  <div
-                    key={`${letter}-${index}`}
-                    className={`letter-box ${dragIndex === index ? 'dragging' : ''}`}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={t('flagGame.letterAria', { letter, position: index + 1 })}
-                    onKeyDown={(e) => handleLetterKeyDown(index, e)}
-                    onPointerDown={() => handlePointerDown(index)}
-                    onPointerEnter={() => handlePointerEnter(index)}
-                    onPointerUp={handlePointerUp}
-                  >
-                    {letter}
-                  </div>
-                ))}
+              <div className="answer-card">
+                <div className="card-label">{t('flagGame.arrangeLetters')}</div>
+                <div className="letters-container">
+                  {selected.map((tile, index) => (
+                    <div
+                      key={tile.id}
+                      data-letter-index={index}
+                      className={`letter-box ${dragIndex === index ? 'dragging' : ''}`}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={t('flagGame.letterAria', { letter: tile.char, position: index + 1 })}
+                      onKeyDown={(e) => handleLetterKeyDown(index, e)}
+                      onPointerDown={(e) => handleLetterPointerDown(index, e)}
+                      onPointerMove={handleLetterPointerMove}
+                      onPointerUp={handleLetterPointerUp}
+                      onPointerCancel={handleLetterPointerUp}
+                    >
+                      {tile.char}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
               {message && (
                 <div className={`message ${messageType}`} aria-live="polite">
@@ -585,7 +392,7 @@ export default function FlagGame() {
               <div className="button-group">
                 <button
                   className="btn btn-sound icon-only"
-                  onClick={playCountryName}
+                  onClick={() => speak(country.name)}
                   title={t('flagGame.listenTitle')}
                   aria-label={t('flagGame.listenAria')}
                 >
@@ -600,50 +407,45 @@ export default function FlagGame() {
                   </button>
                 ) : (
                   <>
-                  <button
-                    className="btn btn-hint icon-only"
-                    onClick={toggleShowAnswer}
-                    aria-label={t('flagGame.showAnswer')}
-                  >
-                    {showAnswer ? <IconEyeOff /> : <IconEye />}
-                    <span className="sr-only">{showAnswer ? t('flagGame.hideAnswer') : t('flagGame.showAnswer')}</span>
-                  </button>
-                  {devMode && (
                     <button
-                      className="btn btn-ghost"
-                      onClick={() => {
-                        if (!country) return
-                        const target = country.name.toUpperCase().split('')
-                        setSelected(target)
-                        handleCheckAnswer(target)
-                      }}
+                      className="btn btn-hint icon-only"
+                      onClick={() => setShowAnswer((v) => !v)}
+                      aria-label={t('flagGame.showAnswer')}
                     >
-                      {t('flagGame.autoFill')}
+                      {showAnswer ? <IconEyeOff /> : <IconEye />}
+                      <span className="sr-only">{showAnswer ? t('flagGame.hideAnswer') : t('flagGame.showAnswer')}</span>
                     </button>
-                  )}
-                  <button
-                    className="btn btn-skip icon-only"
-                    onClick={handleSkip}
-                    aria-label={t('flagGame.skip')}
-                  >
-                    <IconSkip />
-                    <span className="sr-only">{t('flagGame.skip')}</span>
-                  </button>
-                </>
-              )}
-            </div>
-
-            {showAnswer && !completed && (
-              <div className="hint">
-                {t('flagGame.answer')} <strong>{country.name}</strong>
+                    {devMode && (
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => {
+                          const target = tilesFromName(country.name)
+                          setSelected(target)
+                          handleCheckAnswer(target)
+                        }}
+                      >
+                        {t('flagGame.autoFill')}
+                      </button>
+                    )}
+                    <button className="btn btn-skip icon-only" onClick={handleSkip} aria-label={t('flagGame.skip')}>
+                      <IconSkip />
+                      <span className="sr-only">{t('flagGame.skip')}</span>
+                    </button>
+                  </>
+                )}
               </div>
-            )}
 
-            {/* no extra buttons after completion; only the inline Next remains */}
+              {showAnswer && !completed && (
+                <div className="hint">
+                  {t('flagGame.answer')} <strong>{country.name}</strong>
+                </div>
+              )}
 
               {showRoundSummary && completed && (
-                <div className="hint" style={{ marginTop: '0.5rem' }}>
-                  <div><strong>{t('flagGame.roundComplete')}</strong></div>
+                <div className="hint summary-hint">
+                  <div>
+                    <strong>{t('flagGame.roundComplete')}</strong>
+                  </div>
                   <div>
                     {t('flagGame.roundSummary', {
                       roundScore,
@@ -652,11 +454,7 @@ export default function FlagGame() {
                     })}
                   </div>
                   <div>{t('flagGame.totalScore', { score })}</div>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ marginTop: '0.5rem' }}
-                    onClick={() => setShowRoundSummary(false)}
-                  >
+                  <button className="btn btn-ghost summary-close" onClick={() => setShowRoundSummary(false)}>
                     {t('flagGame.closeSummary')}
                   </button>
                 </div>
@@ -665,12 +463,9 @@ export default function FlagGame() {
           </div>
 
           <aside className="stats-panel" aria-label={t('flagGame.statsLabel')}>
-            <button
-              className="back-link"
-              onClick={() => navigate('/')}
-              aria-label={t('flagGame.backToLibrary')}
-            >
-              ← {t('flagGame.backToLibrary')}
+            <button className="back-link" onClick={() => onExit?.()} aria-label={t('flagGame.backToLibrary')}>
+              ← <span className="back-label-long">{t('flagGame.backToLibrary')}</span>
+              <span className="back-label-short">{t('flagGame.backShort')}</span>
             </button>
             <div className="score-block">{t('flagGame.scoreLabel', { score })}</div>
             <div className="stats-actions">
@@ -688,7 +483,9 @@ export default function FlagGame() {
                 aria-label={t('flagGame.audioHelp')}
                 title={t('flagGame.audioHelpTitle')}
               >
-                {t('flagGame.audioHelpStatus', { status: audioHelp ? t('flagGame.settings.on') : t('flagGame.settings.off') })}
+                {t('flagGame.audioHelpStatus', {
+                  status: audioHelp ? t('flagGame.settings.on') : t('flagGame.settings.off'),
+                })}
               </button>
               <button
                 className="settings-btn"
@@ -698,35 +495,29 @@ export default function FlagGame() {
               >
                 {t('flagGame.helpButton')}
               </button>
-            <button
-              className="settings-btn"
-              onClick={() => setShowLeaderboard((v) => !v)}
-              aria-label={t('flagGame.leaderboard')}
-              title={t('flagGame.leaderboard')}
+              <button
+                className="settings-btn"
+                onClick={() => setShowLeaderboard((v) => !v)}
+                aria-label={t('flagGame.leaderboard')}
+                title={t('flagGame.leaderboard')}
               >
                 {showLeaderboard ? t('flagGame.closeLeaderboard') : t('flagGame.leaderboard')}
               </button>
             </div>
-          <div className="stat-grid">
-            <div className={`stat-pill ${timeLimitEnabled && timeLeft <= 10 ? 'danger' : ''}`}>
+            <div className="stat-grid">
+              <div className={`stat-pill ${timeLimitEnabled && timeLeft <= 10 ? 'danger' : ''}`}>
                 ⏳ {timeLimitEnabled ? `${timeLeft}s` : '∞'}
               </div>
               <div className="stat-pill">
                 🔥 {streak} <span className="muted">{t('flagGame.maxStreak', { best: bestStreak })}</span>
               </div>
-              <div className="stat-pill">
-                🎯 {accuracy}%
-              </div>
-              <div className="stat-pill">
-                ⭐ {roundScore}p
-              </div>
-              <div className="stat-pill">
-                ⚙️ {t(`flagGame.difficulty.${difficulty}`)}
-              </div>
+              <div className="stat-pill">🎯 {accuracy}%</div>
+              <div className="stat-pill">⭐ {roundScore}p</div>
+              <div className="stat-pill">⚙️ {t(`flagGame.difficulty.${difficulty}`)}</div>
             </div>
             {showLeaderboard && (
               <div className="leaderboard-card">
-                <Leaderboard />
+                <Leaderboard gameId={game.id} currentScore={score} />
               </div>
             )}
           </aside>

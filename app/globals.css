@@ -1,13 +1,18 @@
 @import '../src/index.css';
+@import '../src/App.css';
 @import '../src/components/FlagGame.css';
+@import '../src/components/LandingPage.css';
+@import '../src/games/imposter/ImposterGame.css';
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .page-shell {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f172a 0%, #312e81 100%);
+  min-height: 100dvh;
+  background: transparent;
   color: #f8fafc;
 }
 

@@ -15,6 +15,10 @@ const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(SUPABASE_URL!, SUPABASE_KEY!)
   : null
 
+export function getSupabase() {
+  return supabase
+}
+
 export async function saveScore(gameId: string, name: string, score: number) {
   if (!supabase) {
     throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_KEY')
@@ -26,7 +30,7 @@ export async function saveScore(gameId: string, name: string, score: number) {
 
 export async function fetchTopScores(gameId: string, limit = 10) {
   if (!supabase) {
-    throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_KEY')
+    return []
   }
   const { data, error } = await supabase
     .from('leaderboards')
@@ -36,5 +40,5 @@ export async function fetchTopScores(gameId: string, limit = 10) {
     .limit(limit)
 
   if (error) throw error
-  return data
+  return data ?? []
 }

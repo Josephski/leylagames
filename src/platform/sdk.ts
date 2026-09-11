@@ -15,11 +15,15 @@ export interface GameSession {
   score?: number
 }
 
-/**
- * En väldigt enkel “plattform‑SDK”.
- * Här kan vi successivt samla sådant som alla spel använder:
- * sessions, poäng, profiler, m.m.
- */
+export interface LeaderboardEntry {
+  user_name: string
+  score: number
+  created_at?: string
+}
+
+function canUseLeaderboardApi() {
+  return typeof window !== 'undefined' && '__NEXT_DATA__' in window
+}
 
 export function createLocalSession(game: GameDefinition): GameSession {
   const now = new Date().toISOString()
@@ -30,40 +34,49 @@ export function createLocalSession(game: GameDefinition): GameSession {
   }
 }
 
-export async function saveGameScore(game: GameDefinition, playerName: string, score: number) {
-  // Försök via Next API-route om den finns (Next-app), annars direkt mot Supabase (Vite).
-  if (typeof window !== 'undefined' && window?.location?.pathname.startsWith('/')) {
+export async function saveGameScore(game: GameDefinition | string, playerName: string, score: number) {
+  const gameId = typeof game === 'string' ? game : game.id
+
+  if (canUseLeaderboardApi()) {
     try {
       const res = await fetch('/api/leaderboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: game.id, name: playerName, score }),
+        body: JSON.stringify({ gameId, name: playerName, score }),
       })
       if (res.ok) {
         return res.json()
       }
     } catch {
-      // Faller tillbaka nedan
+      // Fall back to the public Supabase client on Vite / GitHub Pages.
     }
   }
-  return saveScore(game.id, playerName, score)
+
+  return saveScore(gameId, playerName, score)
 }
 
-export async function fetchGameLeaderboard(game: GameDefinition | string, limit = 10) {
+export async function fetchGameLeaderboard(
+  game: GameDefinition | string,
+  limit = 10,
+): Promise<LeaderboardEntry[]> {
   const gameId = typeof game === 'string' ? game : game.id
-  if (typeof window !== 'undefined' && window?.location?.pathname.startsWith('/')) {
+
+  if (canUseLeaderboardApi()) {
     try {
       const url = new URL('/api/leaderboard', window.location.origin)
       url.searchParams.set('gameId', gameId)
       url.searchParams.set('limit', String(limit))
       const res = await fetch(url.toString())
       if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data?.data)) return data.data
+        const payload: unknown = await res.json()
+        if (payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)) {
+          return (payload as { data: LeaderboardEntry[] }).data
+        }
       }
     } catch {
-      // fallback nedan
+      // Fall back below.
     }
   }
-  return fetchTopScores(gameId, limit)
+
+  return (await fetchTopScores(gameId, limit)) ?? []
 }

@@ -1,23 +1,37 @@
-export type Language = 'sv' | 'da'
+import { partyStrings } from './party'
+
+export type Language = 'sv' | 'da' | 'en' | 'ar'
 
 export const defaultLanguage: Language = 'sv'
 
-export const translations = {
-  sv: {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const mergeDeep = (base: unknown, extra: unknown): unknown => {
+  if (!isRecord(base) || !isRecord(extra)) return extra ?? base
+  const output: Record<string, unknown> = { ...base }
+  for (const [key, value] of Object.entries(extra)) {
+    output[key] = key in output ? mergeDeep(output[key], value) : value
+  }
+  return output
+}
+
+const sv = {
     language: {
       sv: 'Svenska',
       da: 'Danska',
+      en: 'Engelska',
+      ar: 'Arabiska',
     },
     labels: {
       language: 'Språk',
     },
     home: {
       title: 'Leyla Games',
-      lead: 'Spela direkt i webbläsaren. Den här portalen är redo att växa med fler spel.',
-      leadAlt: 'En liten spelplattform där vi kan lägga till fler spel över tid.',
+      lead: 'Välj ett spel och spela direkt i webbläsaren.',
+      leadAlt: 'Flera spel på samma sida – flaggor, memory och matte.',
       startGame: 'Starta spelet',
-      footerNote:
-        'Plattformen är byggd så att vi enkelt kan lägga till fler spel, koppla på global leaderboard och senare flytta till t.ex. Next.js/edge utan att ändra varje spel.',
+      footerNote: 'Fler spel kan läggas till i biblioteket utan att ändra resten av sidan.',
     },
     menu: {
       playing: 'Spelar: {gameName}',
@@ -32,12 +46,54 @@ export const translations = {
         name: 'Utvalda spel',
         description: 'Snabbstarta med våra populäraste spel.',
       },
+      geography: {
+        name: 'Geografi',
+        description: 'Lär dig länder och flaggor.',
+      },
+      numbers: {
+        name: 'Siffror',
+        description: 'Korta räknespel.',
+      },
     },
     games: {
       'flag-quiz': {
         name: 'Flaggquiz',
         shortDescription: 'Gissa landet från flaggan och ordna bokstäverna.',
       },
+      'flag-choice': {
+        name: 'Gissa flaggan',
+        shortDescription: 'Se flaggan och välj rätt land.',
+      },
+      'flag-memory': {
+        name: 'Flaggmemory',
+        shortDescription: 'Hitta två likadana flaggor.',
+      },
+      'math-quiz': {
+        name: 'Räknespel',
+        shortDescription: 'Räkna plus med fyra svarsalternativ.',
+      },
+    },
+    play: {
+      score: 'Poäng: {score}',
+      streak: 'Streak',
+      rounds: 'Rundor',
+      correct: 'Rätt!',
+      incorrect: 'Rätt svar: {answer}',
+      next: 'Nästa',
+      again: 'Spela igen',
+    },
+    flagChoice: {
+      prompt: 'Vilket land är det här?',
+    },
+    flagMemory: {
+      prompt: 'Vänd två kort och hitta samma flagga.',
+      moves: 'Drag',
+      pairs: 'Par',
+      hiddenCard: 'Dolt kort',
+      complete: 'Alla par hittade!',
+    },
+    mathQuiz: {
+      prompt: 'Vad blir summan?',
     },
     flagGame: {
       loading: 'Laddar...',
@@ -91,6 +147,7 @@ export const translations = {
       closeSummary: 'Stäng sammanfattning',
       statsLabel: 'Statistik',
       backToLibrary: 'Tillbaka till spelbiblioteket',
+      backShort: 'Tillbaka',
       scoreLabel: 'Poäng: {score}',
       audioHelp: 'Ljudhjälp',
       audioHelpTitle: 'Ljudhjälp på/av',
@@ -113,23 +170,31 @@ export const translations = {
       loading: 'Hämtar…',
       empty: 'Inga poster ännu.',
       error: 'Kunde inte hämta topplista',
+      nameLabel: 'Namn',
+      namePlaceholder: 'Ditt namn',
+      save: 'Spara poäng',
+      saved: 'Sparat!',
+      saveError: 'Kunde inte spara poäng',
+      needScore: 'Spela en runda först för att spara poäng.',
     },
-  },
-  da: {
+}
+
+const da = {
     language: {
       sv: 'Svensk',
       da: 'Dansk',
+      en: 'Engelsk',
+      ar: 'Arabisk',
     },
     labels: {
       language: 'Sprog',
     },
     home: {
       title: 'Leyla Games',
-      lead: 'Spil direkte i browseren. Denne portal er klar til at vokse med flere spil.',
-      leadAlt: 'En lille spilplatform, hvor vi kan tilføje flere spil over tid.',
+      lead: 'Vælg et spil og spil direkte i browseren.',
+      leadAlt: 'Flere spil på samme side – flag, memory og matematik.',
       startGame: 'Start spillet',
-      footerNote:
-        'Platformen er bygget, så vi nemt kan tilføje flere spil, koble global leaderboard på og senere flytte til f.eks. Next.js/edge uden at ændre hvert spil.',
+      footerNote: 'Flere spil kan lægges i biblioteket uden at ændre resten af siden.',
     },
     menu: {
       playing: 'Spiller: {gameName}',
@@ -144,12 +209,54 @@ export const translations = {
         name: 'Udvalgte spil',
         description: 'Kom hurtigt i gang med vores mest populære spil.',
       },
+      geography: {
+        name: 'Geografi',
+        description: 'Lær lande og flag.',
+      },
+      numbers: {
+        name: 'Tal',
+        description: 'Korte regnespil.',
+      },
     },
     games: {
       'flag-quiz': {
         name: 'Flagquiz',
         shortDescription: 'Gæt landet ud fra flaget og arrangér bogstaverne.',
       },
+      'flag-choice': {
+        name: 'Gæt flaget',
+        shortDescription: 'Se flaget og vælg det rigtige land.',
+      },
+      'flag-memory': {
+        name: 'Flagmemory',
+        shortDescription: 'Find to ens flag.',
+      },
+      'math-quiz': {
+        name: 'Regnespil',
+        shortDescription: 'Plus med fire svarmuligheder.',
+      },
+    },
+    play: {
+      score: 'Point: {score}',
+      streak: 'Streak',
+      rounds: 'Runder',
+      correct: 'Rigtigt!',
+      incorrect: 'Rigtigt svar: {answer}',
+      next: 'Næste',
+      again: 'Spil igen',
+    },
+    flagChoice: {
+      prompt: 'Hvilket land er det her?',
+    },
+    flagMemory: {
+      prompt: 'Vend to kort og find det samme flag.',
+      moves: 'Træk',
+      pairs: 'Par',
+      hiddenCard: 'Skjult kort',
+      complete: 'Alle par er fundet!',
+    },
+    mathQuiz: {
+      prompt: 'Hvad bliver summen?',
     },
     flagGame: {
       loading: 'Indlæser...',
@@ -203,6 +310,7 @@ export const translations = {
       closeSummary: 'Luk opsummering',
       statsLabel: 'Statistik',
       backToLibrary: 'Tilbage til spilbiblioteket',
+      backShort: 'Tilbage',
       scoreLabel: 'Point: {score}',
       audioHelp: 'Lydhjælp',
       audioHelpTitle: 'Lydhjælp til/fra',
@@ -225,9 +333,21 @@ export const translations = {
       loading: 'Henter…',
       empty: 'Ingen poster endnu.',
       error: 'Kunne ikke hente leaderboard',
+      nameLabel: 'Navn',
+      namePlaceholder: 'Dit navn',
+      save: 'Gem point',
+      saved: 'Gemt!',
+      saveError: 'Kunne ikke gemme point',
+      needScore: 'Spil en runde først for at gemme point.',
     },
-  },
-} as const
+}
+
+export const translations = {
+  sv: mergeDeep(sv, partyStrings.sv),
+  da: mergeDeep(da, partyStrings.da),
+  en: mergeDeep(sv, partyStrings.en),
+  ar: mergeDeep(mergeDeep(sv, partyStrings.en), partyStrings.ar),
+} as Record<Language, unknown>
 
 const formatString = (template: string, params?: Record<string, string | number>) => {
   if (!params) return template
@@ -237,12 +357,12 @@ const formatString = (template: string, params?: Record<string, string | number>
   })
 }
 
-const getNestedValue = (source: any, key: string) => {
+const getNestedValue = (source: unknown, key: string): unknown => {
   const parts = key.split('.')
-  let current = source
+  let current: unknown = source
   for (const part of parts) {
     if (current && typeof current === 'object' && part in current) {
-      current = current[part]
+      current = (current as Record<string, unknown>)[part]
     } else {
       return undefined
     }
@@ -250,11 +370,21 @@ const getNestedValue = (source: any, key: string) => {
   return current
 }
 
-export const isLanguage = (value: string | null | undefined): value is Language => value === 'sv' || value === 'da'
+export const isLanguage = (value: string | null | undefined): value is Language =>
+  value === 'sv' || value === 'da' || value === 'en' || value === 'ar'
 
 export const translate = (language: Language, key: string, params?: Record<string, string | number>) => {
   const primary = getNestedValue(translations[language], key)
   const fallback = primary ?? getNestedValue(translations[defaultLanguage], key)
   if (typeof fallback !== 'string') return key
   return formatString(fallback, params)
+}
+
+export const translateList = (language: Language, key: string): string[] => {
+  const primary = getNestedValue(translations[language], key)
+  const fallback = primary ?? getNestedValue(translations[defaultLanguage], key)
+  if (Array.isArray(fallback) && fallback.every((item) => typeof item === 'string')) {
+    return fallback
+  }
+  return []
 }

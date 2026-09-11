@@ -23,7 +23,7 @@ test('start game and see letters', async ({ page }) => {
   await page.waitForSelector('.flag-game', { timeout: 15000 })
   const letters = page.locator('.letter-box')
   await expect(letters.first()).toBeVisible()
-  await expect(page.getByText(/Streak/i)).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText(/max/i)).toBeVisible({ timeout: 10000 })
 
   await page.getByRole('button', { name: /visa svar/i }).click()
   await expect(page.getByText(/Svar:/i)).toBeVisible()
