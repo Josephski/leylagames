@@ -23,6 +23,7 @@ import {
 } from './engine'
 import {
   fetchRoom,
+  fetchRoomRetry,
   imposterJoinUrl,
   isSupabaseConfigured,
   patchRoom,
@@ -288,8 +289,9 @@ export default function ImposterGame() {
     setError('')
     try {
       persistName(trimmedName)
-      let existing = await fetchRoom(trimmedCode)
-      if (!existing) existing = await connectGuestWithRetry(trimmedCode)
+      let existing = await fetchRoomRetry(trimmedCode)
+      if (!existing && !isSupabaseConfigured) existing = await connectGuestWithRetry(trimmedCode)
+      if (!existing) throw new Error('missing')
       const already = existing.players.find((player) => player.id === selfId)
       if (already) {
         if (!already.isHost && !isSupabaseConfigured) void connectGuestWithRetry(trimmedCode).catch(() => undefined)

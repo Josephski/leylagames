@@ -47,6 +47,10 @@ function writeLocalRoom(room: ImposterRoom) {
   }
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 export async function fetchRoom(code: string): Promise<ImposterRoom | null> {
   const supabase = getSupabase()
   if (supabase) {
@@ -58,6 +62,15 @@ export async function fetchRoom(code: string): Promise<ImposterRoom | null> {
     }
   }
   return readLocalRoom(code) ?? (getPeerRoom()?.code === code ? getPeerRoom() : null)
+}
+
+export async function fetchRoomRetry(code: string, attempts = 8, delayMs = 400) {
+  let room = await fetchRoom(code)
+  for (let attempt = 1; attempt < attempts && !room; attempt += 1) {
+    await wait(delayMs)
+    room = await fetchRoom(code)
+  }
+  return room
 }
 
 export async function saveRoom(room: ImposterRoom) {
@@ -168,6 +181,7 @@ export function shareOrigin() {
 
 export function imposterJoinUrl(code: string) {
   if (typeof window === 'undefined') return ''
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
-  return `${shareOrigin()}${base}/games/imposter?room=${encodeURIComponent(code)}`
+  const base = import.meta.env.BASE_URL || '/'
+  const root = `${shareOrigin()}${base.endsWith('/') ? base : `${base}/`}`
+  return `${root}?room=${encodeURIComponent(code)}`
 }

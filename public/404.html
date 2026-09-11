@@ -4,11 +4,18 @@
     <meta charset="utf-8" />
     <title>Redirecting…</title>
     <script>
-      // Redirect all 404s back to the SPA entry on GitHub Pages.
       (function () {
-        var path = window.location.pathname.replace(/^(\/leylagames)?/, '/leylagames');
-        window.location.replace(path || '/leylagames/');
-      })();
+        var location = window.location
+        var segments = location.pathname.split('/').filter(Boolean)
+        var root = '/'
+        if (segments[0] && segments[0] !== 'games') {
+          root = '/' + segments[0] + '/'
+        }
+        var room = new URLSearchParams(location.search).get('room')
+        var target = root
+        if (room) target += '?room=' + encodeURIComponent(room)
+        location.replace(location.origin + target)
+      })()
     </script>
   </head>
   <body></body>

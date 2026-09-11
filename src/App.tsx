@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, Navigate, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { getGameBySlug } from './platform/games'
 import { GameProvider } from './platform/GameContext'
@@ -49,6 +49,11 @@ function RouterGameLink({
 }
 
 function HomePage() {
+  const [params] = useSearchParams()
+  const room = params.get('room')
+  if (room) {
+    return <Navigate to={`/games/imposter?room=${encodeURIComponent(room)}`} replace />
+  }
   return <GameLibrary GameLink={RouterGameLink} />
 }
 
