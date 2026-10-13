@@ -21,6 +21,7 @@
 }
 
 .imposter-top h1,
+.imposter-top-title,
 .imposter-phase {
   margin: 0;
   text-align: center;
@@ -104,6 +105,11 @@
   background: #111827;
   color: white;
   border: 1px solid #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
 .imposter-primary:disabled,
@@ -196,6 +202,89 @@
 
 .imposter-invite .imposter-secondary {
   background: #111827;
+}
+
+.imposter-page.is-intro {
+  max-width: 1080px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.imposter-intro {
+  padding: 0.35rem 0 1.1rem;
+}
+
+.imposter-kicker {
+  display: inline-block;
+  color: #f3d58a;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.7rem;
+}
+
+.imposter-intro h1 {
+  font-size: clamp(2.1rem, 8vw, 4.4rem);
+  line-height: 1.05;
+  max-width: 14ch;
+  margin: 0 0 0.85rem;
+  text-align: start;
+}
+
+.imposter-intro-lead {
+  max-width: 38rem;
+  font-size: 1.08rem;
+  color: #cbd5e1;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.imposter-how {
+  margin-bottom: 1.25rem;
+}
+
+.imposter-how h2 {
+  margin: 0 0 0.9rem;
+}
+
+.imposter-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.imposter-steps article {
+  background: rgba(15, 16, 28, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 1rem;
+}
+
+.imposter-steps span {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e8c36a;
+  color: #111827;
+  font-weight: 900;
+  margin-bottom: 0.55rem;
+}
+
+.imposter-steps h3 {
+  margin: 0 0 0.35rem;
+}
+
+.imposter-steps p {
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.imposter-page.is-intro .imposter-top .lang-pills {
+  margin-bottom: 0;
+  justify-self: end;
 }
 
 .imposter-page .lang-pills {
@@ -385,4 +474,31 @@ html[dir='rtl'] .imposter-rules ol {
 
 .imposter-mode button.is-picked span {
   color: #334155;
+}
+
+@media (max-width: 720px) {
+  .imposter-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .imposter-page.is-intro .imposter-top {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "back lang"
+      "title title";
+  }
+
+  .imposter-page.is-intro .imposter-top > button {
+    grid-area: back;
+  }
+
+  .imposter-page.is-intro .imposter-top h1,
+  .imposter-page.is-intro .imposter-top-title {
+    grid-area: title;
+    text-align: start;
+  }
+
+  .imposter-page.is-intro .imposter-top .lang-pills {
+    grid-area: lang;
+  }
 }

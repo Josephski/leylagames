@@ -15,8 +15,31 @@ import { useLanguage } from '../i18n/LanguageProvider'
 import { readLocal, readLocalFlag, readLocalNumber, writeLocal } from '../lib/storage'
 import { HelpOverlay } from './flag-game/HelpOverlay'
 import { SettingsOverlay } from './flag-game/SettingsOverlay'
-import { BASE_POINTS, STREAK_BONUS, difficultySettings, isDifficulty, type Difficulty } from './flag-game/constants'
-import { IconEye, IconEyeOff, IconNext, IconSkip, IconSound } from './flag-game/icons'
+import {
+  BASE_POINTS,
+  STREAK_BONUS,
+  DIFFICULTY_LEVELS,
+  difficultySettings,
+  isDifficulty,
+  type Difficulty,
+} from './flag-game/constants'
+import {
+  IconCheck,
+  IconClock,
+  IconEye,
+  IconEyeOff,
+  IconFlame,
+  IconGlobe,
+  IconHelp,
+  IconNext,
+  IconSkip,
+  IconSliders,
+  IconSound,
+  IconSoundOff,
+  IconStar,
+  IconTarget,
+  IconTrophy,
+} from './flag-game/icons'
 import { useGameTimer } from './flag-game/useGameTimer'
 import { useSpeech } from './flag-game/useSpeech'
 import './FlagGame.css'
@@ -157,6 +180,23 @@ export default function FlagGame() {
     speak(country.name)
   }, [audioHelp, country, speak])
 
+  const cycleDifficulty = () => {
+    const next = DIFFICULTY_LEVELS[(DIFFICULTY_LEVELS.indexOf(difficulty) + 1) % DIFFICULTY_LEVELS.length]
+    setDifficulty(next)
+    const newTime = difficultySettings[next].time
+    setCustomTime(newTime)
+    setTimeLeft(newTime)
+    flashMessage(t('flagGame.difficultyNotice', { label: t(`flagGame.difficulty.${next}`) }), 'info', 1200)
+  }
+
+  const toggleTimeLimit = () => {
+    setTimeLimitEnabled((on) => {
+      const next = !on
+      if (next) setTimeLeft(customTime)
+      return next
+    })
+  }
+
   useEffect(() => {
     if (dragIndex === null) return
     const onUp = () => {
@@ -284,6 +324,93 @@ export default function FlagGame() {
   return (
     <div className="flag-game">
       <div className="game-shell">
+        <header className="quiz-chrome">
+          <button className="back-link" onClick={() => onExit?.()} aria-label={t('flagGame.backToLibrary')}>
+            ← <span className="back-label-long">{t('flagGame.backToLibrary')}</span>
+            <span className="back-label-short">{t('flagGame.backShort')}</span>
+          </button>
+          <div className="score-block">{t('flagGame.scoreLabel', { score })}</div>
+          <div className="icon-bar" role="toolbar" aria-label={t('flagGame.statsLabel')}>
+            <button
+              type="button"
+              className={`icon-chip ${timeLimitEnabled && timeLeft <= 10 ? 'danger' : ''} ${timeLimitEnabled ? 'is-active' : 'is-off'}`}
+              onClick={toggleTimeLimit}
+              aria-pressed={timeLimitEnabled}
+              title={
+                timeLimitEnabled
+                  ? t('flagGame.timeToggleOn', { seconds: timeLeft })
+                  : t('flagGame.timeToggleOff')
+              }
+              aria-label={
+                timeLimitEnabled
+                  ? t('flagGame.timeToggleOn', { seconds: timeLeft })
+                  : t('flagGame.timeToggleOff')
+              }
+            >
+              <IconClock />
+              <span>{timeLimitEnabled ? `${timeLeft}s` : '∞'}</span>
+            </button>
+            <button
+              type="button"
+              className="icon-chip is-active"
+              onClick={cycleDifficulty}
+              title={t('flagGame.difficultyToggle', { label: t(`flagGame.difficulty.${difficulty}`) })}
+              aria-label={t('flagGame.difficultyToggle', { label: t(`flagGame.difficulty.${difficulty}`) })}
+            >
+              <IconSliders />
+              <span>{t(`flagGame.difficulty.${difficulty}`)}</span>
+            </button>
+            <button
+              type="button"
+              className={`icon-chip ${audioHelp ? 'is-active' : 'is-off'}`}
+              onClick={() => setAudioHelp((v) => !v)}
+              aria-pressed={audioHelp}
+              aria-label={t('flagGame.audioHelpTitle')}
+              title={t('flagGame.audioHelpTitle')}
+            >
+              {audioHelp ? <IconSound /> : <IconSoundOff />}
+            </button>
+            <button
+              type="button"
+              className="icon-chip"
+              onClick={() => setShowHelp(true)}
+              aria-label={t('flagGame.helpButton')}
+              title={t('flagGame.helpButton')}
+            >
+              <IconHelp />
+            </button>
+            <button
+              type="button"
+              className={`icon-chip ${showLeaderboard ? 'is-active' : ''}`}
+              onClick={() => setShowLeaderboard((v) => !v)}
+              aria-pressed={showLeaderboard}
+              aria-label={t('flagGame.leaderboard')}
+              title={t('flagGame.leaderboard')}
+            >
+              <IconTrophy />
+            </button>
+            <button
+              type="button"
+              className="icon-chip"
+              onClick={() => setShowSettings(true)}
+              aria-label={t('flagGame.settings.title')}
+              title={t('flagGame.settings.title')}
+            >
+              <IconGlobe />
+            </button>
+          </div>
+        </header>
+        <div className="live-stats">
+          <span>
+            <IconFlame /> {streak} <span className="muted">{t('flagGame.maxStreak', { best: bestStreak })}</span>
+          </span>
+          <span>
+            <IconTarget /> {accuracy}%
+          </span>
+          <span>
+            <IconStar /> {roundScore}p
+          </span>
+        </div>
         <div className="content-row">
           <div className="game-container">
             <div className="flag-display">
@@ -309,32 +436,20 @@ export default function FlagGame() {
               )}
             </div>
 
-            <div className="progress-bar">
-              <div className="progress-track">
-                <div className="progress-fill" style={{ width: `${timePercent}%` }} />
+            {timeLimitEnabled && (
+              <div className="progress-bar">
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${timePercent}%` }} />
+                </div>
               </div>
-            </div>
+            )}
 
             {showSettings && (
               <SettingsOverlay
-                difficulty={difficulty}
-                timeLimitEnabled={timeLimitEnabled}
                 customTime={customTime}
                 selectedVoice={selectedVoice}
                 voices={voices}
                 onClose={() => setShowSettings(false)}
-                onDifficulty={(level) => {
-                  setDifficulty(level)
-                  const newTime = difficultySettings[level].time
-                  setCustomTime(newTime)
-                  setTimeLeft(newTime)
-                  flashMessage(
-                    t('flagGame.difficultyNotice', { label: t(`flagGame.difficulty.${level}`) }),
-                    'info',
-                    1200,
-                  )
-                }}
-                onTimeLimitEnabled={setTimeLimitEnabled}
                 onCustomTime={(next) => {
                   setCustomTime(next)
                   setTimeLeft(next)
@@ -379,17 +494,16 @@ export default function FlagGame() {
                 </div>
               )}
 
-              {!completed && (
-                <button
-                  className="btn btn-check"
-                  onClick={() => handleCheckAnswer()}
-                  aria-label={t('flagGame.checkAnswer')}
-                >
-                  ✓
-                </button>
-              )}
-
               <div className="button-group">
+                {!completed && (
+                  <button
+                    className="btn btn-check icon-only"
+                    onClick={() => handleCheckAnswer()}
+                    aria-label={t('flagGame.checkAnswer')}
+                  >
+                    <IconCheck />
+                  </button>
+                )}
                 <button
                   className="btn btn-sound icon-only"
                   onClick={() => speak(country.name)}
@@ -461,66 +575,11 @@ export default function FlagGame() {
               )}
             </div>
           </div>
-
-          <aside className="stats-panel" aria-label={t('flagGame.statsLabel')}>
-            <button className="back-link" onClick={() => onExit?.()} aria-label={t('flagGame.backToLibrary')}>
-              ← <span className="back-label-long">{t('flagGame.backToLibrary')}</span>
-              <span className="back-label-short">{t('flagGame.backShort')}</span>
-            </button>
-            <div className="score-block">{t('flagGame.scoreLabel', { score })}</div>
-            <div className="stats-actions">
-              <button
-                className="settings-btn"
-                onClick={() => setShowSettings(true)}
-                aria-label={t('flagGame.settings.title')}
-                title={t('flagGame.settings.title')}
-              >
-                {t('flagGame.settings.title')}
-              </button>
-              <button
-                className="settings-btn"
-                onClick={() => setAudioHelp((v) => !v)}
-                aria-label={t('flagGame.audioHelp')}
-                title={t('flagGame.audioHelpTitle')}
-              >
-                {t('flagGame.audioHelpStatus', {
-                  status: audioHelp ? t('flagGame.settings.on') : t('flagGame.settings.off'),
-                })}
-              </button>
-              <button
-                className="settings-btn"
-                onClick={() => setShowHelp(true)}
-                aria-label={t('flagGame.helpButton')}
-                title={t('flagGame.helpButton')}
-              >
-                {t('flagGame.helpButton')}
-              </button>
-              <button
-                className="settings-btn"
-                onClick={() => setShowLeaderboard((v) => !v)}
-                aria-label={t('flagGame.leaderboard')}
-                title={t('flagGame.leaderboard')}
-              >
-                {showLeaderboard ? t('flagGame.closeLeaderboard') : t('flagGame.leaderboard')}
-              </button>
+          {showLeaderboard && (
+            <div className="leaderboard-card">
+              <Leaderboard gameId={game.id} currentScore={score} />
             </div>
-            <div className="stat-grid">
-              <div className={`stat-pill ${timeLimitEnabled && timeLeft <= 10 ? 'danger' : ''}`}>
-                ⏳ {timeLimitEnabled ? `${timeLeft}s` : '∞'}
-              </div>
-              <div className="stat-pill">
-                🔥 {streak} <span className="muted">{t('flagGame.maxStreak', { best: bestStreak })}</span>
-              </div>
-              <div className="stat-pill">🎯 {accuracy}%</div>
-              <div className="stat-pill">⭐ {roundScore}p</div>
-              <div className="stat-pill">⚙️ {t(`flagGame.difficulty.${difficulty}`)}</div>
-            </div>
-            {showLeaderboard && (
-              <div className="leaderboard-card">
-                <Leaderboard gameId={game.id} currentScore={score} />
-              </div>
-            )}
-          </aside>
+          )}
         </div>
       </div>
     </div>

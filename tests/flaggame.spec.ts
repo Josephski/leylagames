@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
 
+if (process.env.PW_CHANNEL) {
+  test.use({ channel: process.env.PW_CHANNEL })
+}
+
 test('start game and see letters', async ({ page }) => {
   await page.goto('/games/flag-quiz?country=SE&dev=1')
 
@@ -36,10 +40,8 @@ test('start game and see letters', async ({ page }) => {
   await page.getByRole('button', { name: /hoppa över/i }).click()
   await expect(letters.first()).toBeVisible()
 
-  // Open settings and toggle difficulty
-  await page.getByRole('button', { name: /inställningar/i }).click()
-  await page.getByRole('button', { name: /Svår/ }).click()
-  await page.getByRole('button', { name: /Stäng/ }).click()
+  await page.getByRole('button', { name: /Svårighet Mellan/i }).click()
+  await expect(page.getByRole('button', { name: /Svårighet Svår/i })).toBeVisible()
 
   // Open help overlay
   await page.getByRole('button', { name: /Hjälp/ }).click()

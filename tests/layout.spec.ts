@@ -1,5 +1,9 @@
 import { expect, Page, test } from '@playwright/test'
 
+if (process.env.PW_CHANNEL) {
+  test.use({ channel: process.env.PW_CHANNEL })
+}
+
 async function dismissTutorialIfVisible(page: Page) {
   const tutorialOverlay = page.locator('.settings-overlay')
   if (await tutorialOverlay.isVisible({ timeout: 2000 }).catch(() => false)) {

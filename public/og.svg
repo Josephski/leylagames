@@ -1,15 +1,10 @@
 <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop stop-color="#667eea" offset="0%"/>
-      <stop stop-color="#764ba2" offset="100%"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="630" fill="url(#g)"/>
-  <text x="80" y="180" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="64" font-weight="600">Leyla Game</text>
-  <text x="80" y="250" fill="#e5e7eb" font-family="Segoe UI, sans-serif" font-size="36">Flaggquiz med timer, streaks och topplista</text>
-  <rect x="80" y="310" width="1040" height="240" rx="24" fill="rgba(255,255,255,0.12)" stroke="#ffffff" stroke-width="2"/>
-  <text x="120" y="380" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="30">💰 Poäng: bas + tidsbonus + streakmultiplikator</text>
-  <text x="120" y="430" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="30">⏳ Svårighet: Lätt / Mellan / Svår</text>
-  <text x="120" y="480" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="30">🌍 Flaggor offline + Supabase leaderboard</text>
+  <rect width="1200" height="630" fill="#07070f"/>
+  <circle cx="1080" cy="-40" r="280" fill="#e8c36a" fill-opacity="0.16"/>
+  <circle cx="80" cy="680" r="240" fill="#38bdf8" fill-opacity="0.12"/>
+  <text x="80" y="160" fill="#f3d58a" font-family="Segoe UI, sans-serif" font-size="28" font-weight="700" letter-spacing="4">LEYLA GAMES</text>
+  <text x="80" y="280" fill="#f8fafc" font-family="Segoe UI, sans-serif" font-size="64" font-weight="800">Spela tillsammans.</text>
+  <text x="80" y="360" fill="#f8fafc" font-family="Segoe UI, sans-serif" font-size="64" font-weight="800">Hitta impostern.</text>
+  <text x="80" y="460" fill="#cbd5e1" font-family="Segoe UI, sans-serif" font-size="28">Party och familjespel i webbläsaren. Ingen app.</text>
+  <text x="80" y="540" fill="#94a3b8" font-family="Segoe UI, sans-serif" font-size="22">3–15 spelare · QR-rum · Svenska, danska, engelska, arabiska</text>
 </svg>

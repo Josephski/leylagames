@@ -1,91 +1,111 @@
 'use client'
 
 import type { ComponentType, ReactNode } from 'react'
-import { gameCategories, games, getGameById } from '../platform/games'
+import { gameCategories, games } from '../platform/games'
 import { useLanguage } from '../i18n/LanguageProvider'
 import { LanguageSelect } from '../i18n/LanguageSelect'
+import {
+  IconFlag,
+  IconGlobe,
+  IconLayers,
+  IconParty,
+  IconPlus,
+  IconType,
+} from './flag-game/icons'
 import './LandingPage.css'
+
+function privacyHref() {
+  const base = import.meta.env.BASE_URL || '/'
+  return `${base.endsWith('/') ? base : `${base}/`}privacy`
+}
+
+const CATEGORY_ICONS: Record<string, ReactNode> = {
+  party: <IconParty />,
+  geography: <IconGlobe />,
+  numbers: <IconPlus />,
+}
+
+const GAME_ICONS: Record<string, ReactNode> = {
+  imposter: <IconParty />,
+  'flag-choice': <IconFlag />,
+  'flag-quiz': <IconType />,
+  'flag-memory': <IconLayers />,
+  'math-quiz': <IconPlus />,
+}
 
 export function GameLibrary({
   GameLink,
 }: {
-  GameLink: ComponentType<{ slug: string; className?: string; children: ReactNode }>
+  GameLink: ComponentType<{ slug: string; className?: string; children: ReactNode; 'aria-label'?: string }>
 }) {
   const { t } = useLanguage()
-  const featured = getGameById('imposter') ?? games[0]
 
   return (
-    <div className="landing">
+    <div className="landing is-home">
       <header className="landing-nav">
-        <span className="landing-logo">{t('landing.kicker')}</span>
+        <span className="landing-logo">{t('home.title')}</span>
         <LanguageSelect id="lang-select-app" variant="pills" />
       </header>
 
-      <section className="landing-hero">
-        <p className="landing-kicker">
-          {t('landing.featuredBadge')} · {t('landing.players')}
-        </p>
-        <h1>{t('landing.heroTitle')}</h1>
-        <p className="landing-lead">{t('landing.heroLead')}</p>
-        <div className="landing-cta">
-          <GameLink slug={featured.slug} className="landing-cta-primary">
-            {t('landing.playImposter')}
-          </GameLink>
-          <a href="#library" className="landing-cta-ghost">
-            {t('landing.browseGames')}
+      <section className="home-hero">
+        <h1>{t('home.chooseTitle')}</h1>
+        <p className="landing-lead">{t('home.lead')}</p>
+      </section>
+
+      <nav className="home-jump" aria-label={t('home.chooseCategory')}>
+        {gameCategories.map((item) => (
+          <a key={item.id} href={`#category-${item.id}`}>
+            <span className="home-jump-icon" aria-hidden="true">
+              {CATEGORY_ICONS[item.id] ?? <IconFlag />}
+            </span>
+            {t(`categories.${item.id}.name`)}
           </a>
-        </div>
-      </section>
+        ))}
+      </nav>
 
-      <section className="landing-how" aria-labelledby="how-title">
-        <h2 id="how-title">{t('landing.howTitle')}</h2>
-        <div className="landing-steps">
-          <article>
-            <span>1</span>
-            <h3>{t('landing.step1Title')}</h3>
-            <p>{t('landing.step1Text')}</p>
-          </article>
-          <article>
-            <span>2</span>
-            <h3>{t('landing.step2Title')}</h3>
-            <p>{t('landing.step2Text')}</p>
-          </article>
-          <article>
-            <span>3</span>
-            <h3>{t('landing.step3Title')}</h3>
-            <p>{t('landing.step3Text')}</p>
-          </article>
-        </div>
-      </section>
+      <div className="landing-library">
+        {gameCategories.map((category) => {
+          const categoryGames = category.gameIds
+            .map((id) => games.find((game) => game.id === id))
+            .filter((game): game is NonNullable<typeof game> => Boolean(game))
 
-      <section id="library" className="landing-library">
-        <h2>{t('landing.libraryTitle')}</h2>
-        {gameCategories.map((cat) => (
-          <section key={cat.id} className="landing-category">
-            <h3>{t(`categories.${cat.id}.name`)}</h3>
-            <p>{t(`categories.${cat.id}.description`)}</p>
-            <div className="landing-grid">
-              {cat.gameIds
-                .map((id) => games.find((game) => game.id === id))
-                .filter((game): game is NonNullable<typeof game> => Boolean(game))
-                .map((game) => (
-                  <GameLink key={game.id} slug={game.slug} className="landing-game-link">
+          return (
+            <section key={category.id} id={`category-${category.id}`} className="landing-category">
+              <h2>
+                <span className="home-jump-icon" aria-hidden="true">
+                  {CATEGORY_ICONS[category.id] ?? <IconFlag />}
+                </span>
+                {t(`categories.${category.id}.name`)}
+              </h2>
+              <p>{t(`categories.${category.id}.description`)}</p>
+              <div className="landing-grid">
+                {categoryGames.map((game) => (
+                  <GameLink
+                    key={game.id}
+                    slug={game.slug}
+                    className="landing-game-link"
+                    aria-label={t(`games.${game.id}.name`)}
+                  >
                     <article className={`landing-game${game.id === 'imposter' ? ' is-featured' : ''}`}>
                       <span className="landing-game-icon" aria-hidden="true">
-                        {game.icon}
+                        {GAME_ICONS[game.id] ?? game.icon}
                       </span>
-                      <h4>{t(`games.${game.id}.name`)}</h4>
+                      <h3>{t(`games.${game.id}.name`)}</h3>
                       <p>{t(`games.${game.id}.shortDescription`)}</p>
                     </article>
                   </GameLink>
                 ))}
-            </div>
-          </section>
-        ))}
-      </section>
+              </div>
+            </section>
+          )
+        })}
+      </div>
 
       <footer className="landing-footer">
         <p>{t('home.footerNote')}</p>
+        <p>
+          <a href={privacyHref()}>{t('home.privacy')}</a>
+        </p>
       </footer>
     </div>
   )

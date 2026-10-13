@@ -43,6 +43,72 @@
   padding: 1.4rem 0 2rem;
 }
 
+.home-hero {
+  padding: 0.4rem 0 1.2rem;
+}
+
+.home-hero h1 {
+  font-size: clamp(1.8rem, 6vw, 2.8rem);
+  line-height: 1.15;
+  max-width: 16ch;
+  margin: 0 0 0.55rem;
+}
+
+.home-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: 1080px;
+  margin: 0 auto 0.35rem;
+}
+
+.home-jump a {
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+  padding: 0.45rem 0.95rem;
+  font-weight: 800;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.home-jump a:hover,
+.home-jump a:focus-visible {
+  border-color: #e8c36a;
+  color: #f3d58a;
+}
+
+.landing-category h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+}
+
+.landing-game h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.landing.is-home {
+  display: flex;
+  flex-direction: column;
+}
+
+.landing.is-home .landing-library {
+  margin-top: 0.85rem;
+  flex: 1;
+}
+
+.landing.is-home .landing-footer {
+  margin-top: auto;
+}
+
 .landing-kicker {
   display: inline-block;
   color: #f3d58a;
@@ -149,6 +215,7 @@
 
 .landing-category {
   margin-top: 1.1rem;
+  scroll-margin-top: 4.5rem;
 }
 
 .landing-grid {
@@ -183,9 +250,28 @@
 }
 
 .landing-game-icon {
-  font-size: 1.7rem;
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.65rem;
+  color: #f3d58a;
+  background: rgba(232, 195, 106, 0.12);
+  border: 1px solid rgba(232, 195, 106, 0.28);
+  border-radius: 14px;
+}
+
+.landing-game-icon .icon,
+.home-jump-icon .icon {
+  width: 22px;
+  height: 22px;
   display: block;
-  margin-bottom: 0.4rem;
+}
+
+.home-jump-icon {
+  display: inline-flex;
+  color: #f3d58a;
 }
 
 .landing-game h4 {
@@ -195,6 +281,11 @@
 .landing-footer {
   margin-top: 2.4rem;
   text-align: center;
+}
+
+.landing-footer a {
+  color: #f3d58a;
+  font-weight: 800;
 }
 
 .landing .lang-pills {

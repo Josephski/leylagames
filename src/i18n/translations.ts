@@ -31,7 +31,10 @@ const sv = {
       lead: 'Välj ett spel och spela direkt i webbläsaren.',
       leadAlt: 'Flera spel på samma sida – flaggor, memory och matte.',
       startGame: 'Starta spelet',
+      chooseTitle: 'Välj ett spel',
+      chooseCategory: 'Kategori',
       footerNote: 'Fler spel kan läggas till i biblioteket utan att ändra resten av sidan.',
+      privacy: 'Integritet',
     },
     menu: {
       playing: 'Spelar: {gameName}',
@@ -70,7 +73,7 @@ const sv = {
       },
       'math-quiz': {
         name: 'Räknespel',
-        shortDescription: 'Räkna plus med fyra svarsalternativ.',
+        shortDescription: 'Plus, minus, gånger och delat. Tal mellan 0 och 20.',
       },
     },
     play: {
@@ -87,13 +90,23 @@ const sv = {
     },
     flagMemory: {
       prompt: 'Vänd två kort och hitta samma flagga.',
+      chooseTitle: 'Hur många par?',
+      chooseLead: 'Spelet ryms på skärmen – du behöver inte skrolla.',
+      pairCount: '{count} par',
       moves: 'Drag',
       pairs: 'Par',
       hiddenCard: 'Dolt kort',
       complete: 'Alla par hittade!',
     },
     mathQuiz: {
-      prompt: 'Vad blir summan?',
+      prompt: 'Vad blir det?',
+      chooseTitle: 'Vad vill du räkna?',
+      chooseLead: 'Alla tal är mellan 0 och 20.',
+      addition: 'Addition',
+      subtraction: 'Subtraktion',
+      multiplication: 'Multiplikation',
+      division: 'Division',
+      mixed: 'Blandat',
     },
     flagGame: {
       loading: 'Laddar...',
@@ -163,6 +176,9 @@ const sv = {
         medium: 'Mellan',
         hard: 'Svår',
       },
+      timeToggleOn: 'Tid {seconds}s. Tryck för att stänga av.',
+      timeToggleOff: 'Ingen tidgräns. Tryck för att slå på.',
+      difficultyToggle: 'Svårighet {label}. Tryck för att byta.',
     },
     leaderboard: {
       title: 'Topplista',
@@ -194,7 +210,10 @@ const da = {
       lead: 'Vælg et spil og spil direkte i browseren.',
       leadAlt: 'Flere spil på samme side – flag, memory og matematik.',
       startGame: 'Start spillet',
+      chooseTitle: 'Vælg et spil',
+      chooseCategory: 'Kategori',
       footerNote: 'Flere spil kan lægges i biblioteket uden at ændre resten af siden.',
+      privacy: 'Privatliv',
     },
     menu: {
       playing: 'Spiller: {gameName}',
@@ -233,7 +252,7 @@ const da = {
       },
       'math-quiz': {
         name: 'Regnespil',
-        shortDescription: 'Plus med fire svarmuligheder.',
+        shortDescription: 'Plus, minus, gange og dividere. Tal mellem 0 og 20.',
       },
     },
     play: {
@@ -250,13 +269,23 @@ const da = {
     },
     flagMemory: {
       prompt: 'Vend to kort og find det samme flag.',
+      chooseTitle: 'Hvor mange par?',
+      chooseLead: 'Spillet fylder skærmen – du behøver ikke at scrolle.',
+      pairCount: '{count} par',
       moves: 'Træk',
       pairs: 'Par',
       hiddenCard: 'Skjult kort',
       complete: 'Alle par er fundet!',
     },
     mathQuiz: {
-      prompt: 'Hvad bliver summen?',
+      prompt: 'Hvad bliver det?',
+      chooseTitle: 'Hvad vil du regne?',
+      chooseLead: 'Alle tal er mellem 0 og 20.',
+      addition: 'Addition',
+      subtraction: 'Subtraktion',
+      multiplication: 'Multiplikation',
+      division: 'Division',
+      mixed: 'Blandet',
     },
     flagGame: {
       loading: 'Indlæser...',
@@ -326,6 +355,9 @@ const da = {
         medium: 'Mellem',
         hard: 'Svær',
       },
+      timeToggleOn: 'Tid {seconds}s. Tryk for at slå fra.',
+      timeToggleOff: 'Ingen tidsgrænse. Tryk for at slå til.',
+      difficultyToggle: 'Sværhedsgrad {label}. Tryk for at skifte.',
     },
     leaderboard: {
       title: 'Leaderboard',

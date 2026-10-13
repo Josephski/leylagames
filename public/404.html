@@ -8,13 +8,27 @@
         var location = window.location
         var segments = location.pathname.split('/').filter(Boolean)
         var root = '/'
-        if (segments[0] && segments[0] !== 'games') {
+        var rest = segments.slice()
+        if (segments[0] && segments[0] !== 'games' && segments[0] !== 'privacy') {
           root = '/' + segments[0] + '/'
+          rest = segments.slice(1)
         }
-        var room = new URLSearchParams(location.search).get('room')
-        var target = root
-        if (room) target += '?room=' + encodeURIComponent(room)
-        location.replace(location.origin + target)
+        var path = '/' + rest.join('/')
+        if (path !== '/' && !path.endsWith('/')) {
+          /* keep */
+        } else if (!rest.length) {
+          path = '/'
+        }
+        var search = location.search || ''
+        var hash = location.hash || ''
+        var target = location.origin + root
+        if (rest.length) {
+          var redir = path + search + hash
+          target += '?redir=' + encodeURIComponent(redir)
+        } else if (search) {
+          target += search
+        }
+        location.replace(target)
       })()
     </script>
   </head>

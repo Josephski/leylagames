@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://josephski.github.io/leylagames/sitemap.xml

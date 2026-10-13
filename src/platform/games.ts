@@ -63,7 +63,7 @@ export const games: GameDefinition[] = [
     id: 'math-quiz',
     slug: 'math-quiz',
     name: 'Räknespel',
-    shortDescription: 'Räkna plus med fyra svarsalternativ.',
+    shortDescription: 'Plus, minus, gånger och delat. Tal mellan 0 och 20.',
     icon: '➕',
     tags: ['matte', 'barn'],
     component: MathQuiz,

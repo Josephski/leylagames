@@ -5,6 +5,7 @@ import { countryChoices, getRandomCountry, type Country } from '../data/countrie
 import { useLanguage } from '../i18n/LanguageProvider'
 import { FlagImage } from './FlagImage'
 import { GameShell } from './GameShell'
+import { IconFlame, IconHash } from './flag-game/icons'
 import './GameShell.css'
 
 export default function FlagChoice() {
@@ -50,8 +51,8 @@ export default function FlagChoice() {
     <GameShell
       score={score}
       stats={[
-        { label: t('play.streak'), value: String(streak) },
-        { label: t('play.rounds'), value: String(rounds) },
+        { label: t('play.streak'), value: String(streak), icon: <IconFlame /> },
+        { label: t('play.rounds'), value: String(rounds), icon: <IconHash /> },
       ]}
     >
       <p className="play-prompt">{t('flagChoice.prompt')}</p>

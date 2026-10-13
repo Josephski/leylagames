@@ -1,19 +1,23 @@
 import { expect, test } from '@playwright/test'
 
+if (process.env.PW_CHANNEL) {
+  test.use({ channel: process.env.PW_CHANNEL })
+}
+
 test('imposter pass-the-phone round follows the rules', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
   await page.getByRole('button', { name: 'Engelska' }).click()
-  await expect(page.getByRole('heading', { name: /Play together/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Choose a game' })).toBeVisible()
+  await page.getByRole('link', { name: /Imposter/i }).click()
 
+  await expect(page.getByRole('heading', { name: /Play together/i })).toBeVisible()
   await page.getByRole('button', { name: 'Arabic' }).click()
   await expect(page.getByRole('heading', { name: /العبوا معاً/ })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
 
   await page.getByRole('button', { name: 'الإنجليزية' }).click()
-  await page.getByRole('link', { name: /Play Imposter/i }).first().click()
-
-  await expect(page.getByRole('heading', { name: 'Imposter' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Play together/i })).toBeVisible()
   await page.getByPlaceholder('Name').fill('Leyla')
   await page.getByRole('button', { name: /In person/i }).click()
   await page.getByRole('button', { name: /Create game and show QR/i }).click()
@@ -45,4 +49,18 @@ test('imposter pass-the-phone round follows the rules', async ({ page }) => {
   }
 
   await expect(page.getByRole('heading', { name: 'Vote for the Imposter' })).toBeVisible()
+})
+
+test('imposter host survives a refresh', async ({ page }) => {
+  await page.goto('/games/imposter')
+  await page.getByPlaceholder('Namn').fill('Leyla')
+  await page.getByRole('button', { name: /På plats/i }).click()
+  await page.getByRole('button', { name: /Skapa spel och visa QR/i }).click()
+  await expect(page.getByRole('heading', { name: 'Du hostar spelet' })).toBeVisible()
+  const code = await page.locator('.imposter-code-readout').innerText()
+  expect(code.trim()).toMatch(/^[A-Z0-9]{6}$/)
+
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Du hostar spelet' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('.imposter-code-readout')).toHaveText(code.trim())
 })

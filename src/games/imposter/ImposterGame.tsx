@@ -28,7 +28,6 @@ import {
   type RoundChoice,
 } from './engine'
 import {
-  fetchRoom,
   fetchRoomRetry,
   imposterJoinUrl,
   isSupabaseConfigured,
@@ -37,7 +36,9 @@ import {
   subscribeRoom,
 } from './room'
 import { pickImposterWord, pickWordOptions } from '../../data/imposterWords'
+import { track } from '../../lib/analytics'
 import { InviteQr } from './InviteQr'
+import { ImposterIntro } from './ImposterIntro'
 import {
   connectGuestWithRetry,
   guestJoin,
@@ -58,9 +59,18 @@ function readRoomFromUrl() {
 
 function readStoredId() {
   if (typeof window === 'undefined') return newPlayerId()
-  const existing = window.sessionStorage.getItem(ID_KEY)
-  if (existing) return existing
+  const fromLocal = window.localStorage.getItem(ID_KEY)
+  if (fromLocal) {
+    window.sessionStorage.setItem(ID_KEY, fromLocal)
+    return fromLocal
+  }
+  const fromSession = window.sessionStorage.getItem(ID_KEY)
+  if (fromSession) {
+    window.localStorage.setItem(ID_KEY, fromSession)
+    return fromSession
+  }
   const id = newPlayerId()
+  window.localStorage.setItem(ID_KEY, id)
   window.sessionStorage.setItem(ID_KEY, id)
   return id
 }
@@ -68,7 +78,9 @@ function readStoredId() {
 function readLocals(code: string): string[] {
   if (typeof window === 'undefined') return []
   try {
-    const raw = window.sessionStorage.getItem(`${LOCALS_KEY}-${code}`)
+    const raw =
+      window.localStorage.getItem(`${LOCALS_KEY}-${code}`) ||
+      window.sessionStorage.getItem(`${LOCALS_KEY}-${code}`)
     return raw ? (JSON.parse(raw) as string[]) : []
   } catch {
     return []
@@ -76,7 +88,9 @@ function readLocals(code: string): string[] {
 }
 
 function writeLocals(code: string, ids: string[]) {
-  window.sessionStorage.setItem(`${LOCALS_KEY}-${code}`, JSON.stringify(ids))
+  const payload = JSON.stringify(ids)
+  window.localStorage.setItem(`${LOCALS_KEY}-${code}`, payload)
+  window.sessionStorage.setItem(`${LOCALS_KEY}-${code}`, payload)
 }
 
 function syncRoomUrl(code: string) {
@@ -181,28 +195,38 @@ export default function ImposterGame() {
       return
     }
     let cancelled = false
-    void fetchRoom(code)
-      .then((existing) => {
-        if (cancelled) return
-        if (existing?.players.some((player) => player.id === selfId)) {
-          writeLocals(code, Array.from(new Set([...readLocals(code), selfId])))
-          setActiveId(selfId)
-          setRoom(existing)
-          const mine = existing.players.find((player) => player.id === selfId)
-          if (!isSupabaseConfigured) {
-            if (mine?.isHost) void startHostPeer(code, existing, saveRoom)
-            else void connectGuestWithRetry(code).catch(() => undefined)
-          }
+    void (async () => {
+      try {
+        let existing = await fetchRoomRetry(code)
+        if (!existing && !isSupabaseConfigured) {
+          existing = await connectGuestWithRetry(code).catch(() => null)
         }
-        setRestoring(false)
-      })
-      .catch(() => {
+        if (cancelled || !existing?.players.some((player) => player.id === selfId)) return
+        writeLocals(code, Array.from(new Set([...readLocals(code), selfId])))
+        setActiveId(selfId)
+        setRoom(existing)
+        const mine = existing.players.find((player) => player.id === selfId)
+        if (!mine || isSupabaseConfigured) return
+        try {
+          if (mine.isHost) await startHostPeer(code, existing, saveRoom)
+          else await connectGuestWithRetry(code)
+        } catch {
+          if (!cancelled) setError(t('imposter.reconnectFailed'))
+        }
+      } finally {
         if (!cancelled) setRestoring(false)
-      })
+      }
+    })()
     return () => {
       cancelled = true
     }
-  }, [selfId])
+  }, [selfId, t])
+
+  useEffect(() => {
+    if (room?.phase === 'result') {
+      track('imposter_round_finished', { players: room.players.length })
+    }
+  }, [room?.phase, room?.players.length])
 
   useEffect(() => {
     if (!room) return
@@ -281,6 +305,7 @@ export default function ImposterGame() {
     setRoom(created)
     setBusy(false)
     settleMobileViewport()
+    track('imposter_room_created', { mode: playMode })
     try {
       await saveRoom(created)
       if (!isSupabaseConfigured) {
@@ -316,6 +341,7 @@ export default function ImposterGame() {
         syncRoomUrl(trimmedCode)
         setActiveId(selfId)
         setRoom(existing)
+        track('imposter_join', { returning: true })
         return
       }
       if (existing.phase !== 'lobby') throw new Error('started')
@@ -336,6 +362,7 @@ export default function ImposterGame() {
         syncRoomUrl(trimmedCode)
         setActiveId(selfId)
         setRoom(next)
+        track('imposter_join')
         return
       }
       const next = await patchRoom(trimmedCode, (current) => {
@@ -351,6 +378,7 @@ export default function ImposterGame() {
       syncRoomUrl(trimmedCode)
       setActiveId(selfId)
       setRoom(next)
+      track('imposter_join')
     } catch (err) {
       handleError(err, t('imposter.roomMissing'))
     } finally {
@@ -408,6 +436,7 @@ export default function ImposterGame() {
       }
     })
     setRevealed(false)
+    track('imposter_round_started', { players: room.players.length })
   }
 
   const markReady = async () => {
@@ -587,6 +616,20 @@ export default function ImposterGame() {
     }
   }
 
+  const shareInvite = async () => {
+    if (!joinUrl) return
+    const text = t('imposter.shareText', { code: room?.code ?? '' })
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: t('games.imposter.name'), text, url: joinUrl })
+        return
+      } catch {
+        // User cancelled, or share is unavailable — fall through to copy.
+      }
+    }
+    await copyLink()
+  }
+
   const wordLabel = room?.word.en ? displayWord(room.word, language) : ''
   const mode = room?.playMode ?? playMode
 
@@ -600,7 +643,7 @@ export default function ImposterGame() {
     return (
       <div className="imposter-page">
         <main className="imposter-card">
-          <p className="imposter-tagline">{t('games.imposter.name')}</p>
+          <p className="imposter-tagline">{t('imposter.reconnecting')}</p>
         </main>
       </div>
     )
@@ -609,16 +652,16 @@ export default function ImposterGame() {
   if (!room) {
     const invited = Boolean(readRoomFromUrl())
     return (
-      <div className="imposter-page">
+      <div className={`imposter-page${invited ? '' : ' is-intro'}`}>
         <header className="imposter-top">
           <button type="button" className="imposter-text-btn" onClick={() => onExit?.()}>
             {t('flagGame.backShort')}
           </button>
-          <h1>{t('games.imposter.name')}</h1>
-          <span />
-        </header>
-        <main className="imposter-card">
+          <p className="imposter-top-title">{t('games.imposter.name')}</p>
           <LanguageSelect id="imposter-lang" variant="pills" />
+        </header>
+        {!invited && <ImposterIntro />}
+        <main className="imposter-card">
           <h2>{invited ? t('imposter.invitedTitle') : t('imposter.hostTitle')}</h2>
           <p className="imposter-tagline">{invited ? t('imposter.invitedLead') : t('imposter.hostLead')}</p>
           <label className="imposter-field">
@@ -719,9 +762,18 @@ export default function ImposterGame() {
               <p className="imposter-code-readout">{room.code}</p>
               <p className="imposter-link">{joinUrl}</p>
               <p>{t('imposter.wifiHint')}</p>
+              <button type="button" className="imposter-secondary" onClick={() => void shareInvite()}>
+                {copied ? t('imposter.copied') : t('imposter.share')}
+              </button>
               <button type="button" className="imposter-secondary" onClick={() => void copyLink()}>
                 {copied ? t('imposter.copied') : t('imposter.copyLink')}
               </button>
+              <a
+                className="imposter-secondary"
+                href={`https://wa.me/?text=${encodeURIComponent(`${t('imposter.shareText', { code: room.code })} ${joinUrl}`)}`}
+              >
+                {t('imposter.shareWhatsapp')}
+              </a>
             </section>
           )}
           <p className={isSupabaseConfigured ? 'imposter-ok' : 'imposter-warn'}>

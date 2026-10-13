@@ -123,24 +123,39 @@ export async function startHostPeer(code: string, room: ImposterRoom, save: (nex
     broadcast(room)
     return
   }
-  stopPeerSync()
-  persist = save
-  latest = room
-  hostCode = code
-  const Peer = await loadPeer()
-  const peer = new Peer(peerIdFor(code))
-  hostPeer = peer
-  await waitPeerOpen(peer)
-  peer.on('connection', (conn) => {
-    hostConns.add(conn)
-    conn.on('open', () => {
-      if (latest) send(conn, { type: 'state', room: latest })
-    })
-    conn.on('data', (data) => {
-      void onHostMessage(data as PeerMsg)
-    })
-    conn.on('close', () => hostConns.delete(conn))
-  })
+
+  let lastError: unknown
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    stopPeerSync()
+    persist = save
+    latest = room
+    hostCode = code
+    try {
+      const Peer = await loadPeer()
+      const peer = new Peer(peerIdFor(code))
+      hostPeer = peer
+      await waitPeerOpen(peer)
+      peer.on('connection', (conn) => {
+        hostConns.add(conn)
+        conn.on('open', () => {
+          if (latest) send(conn, { type: 'state', room: latest })
+        })
+        conn.on('data', (data) => {
+          void onHostMessage(data as PeerMsg)
+        })
+        conn.on('close', () => hostConns.delete(conn))
+      })
+      return
+    } catch (error) {
+      lastError = error
+      stopPeerSync()
+      persist = save
+      latest = room
+      hostCode = code
+      await wait(700 + attempt * 400)
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('peer-host')
 }
 
 export async function startGuestPeer(code: string) {
